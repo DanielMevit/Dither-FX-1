@@ -1,6 +1,6 @@
 {
   "name": "dither-fx",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "scripts": {
     "watch": "nodemon -w src -e js,jsx,json,css,html -w webpack.config.js -x npm run build",
     "build": "webpack --mode development",
