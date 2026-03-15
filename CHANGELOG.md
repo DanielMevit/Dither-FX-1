@@ -1,6 +1,8 @@
-# Progress Log — Dither Effect Plugin
+# Changelog
 
-All changes are logged chronologically. Entries are never removed, only added.
+All notable changes to Dither FX are tracked here.
+
+Date format for this file: `YYYY-MM-DD HH:mm TZ`.
 
 ---
 
