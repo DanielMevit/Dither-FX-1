@@ -17,53 +17,41 @@ A Photoshop UXP plugin that applies real-time dithering effects to image layers.
 4. **`require("photoshop")` and `require("uxp")` are the correct import styles.** UXP does not support ES6 `import` for host APIs. The webpack externals config maps these to `commonjs2`. Do not refactor to ES6 imports.
 5. **Spectrum UXP components (`sp-*`) have different event semantics than HTML.** Use `onInput` for `sp-slider` and `sp-textfield`. For `sp-picker` (dropdown), React's synthetic `onChange`/`onInput` do NOT work — you MUST use a `ref` + direct `addEventListener('change', handler)` on the DOM element. For `sp-checkbox`, use `checked={val ? true : undefined}` — setting `checked={false}` still results in a checked state in UXP because it treats any attribute presence as truthy.
 6. **Color inputs use native `<input type="color">` with `onChange`** — this is correct because these are standard HTML elements, not Spectrum components. Don't change these to `onInput`.
+7. **Do NOT pass `colorProfile` to `imaging.createImageDataFromBuffer()`** — it causes error -26120 "Unknown color profile". Omit it entirely and let Photoshop use the document's default.
+8. **UXP Bounds objects may use underscore-prefixed properties** (`_left`, `_top`, `_right`, `_bottom`). Always access with fallback: `bounds.left ?? bounds._left ?? 0`.
 
 ## Architecture
 ```
 src/
   index.jsx                 — Entry point. Registers "ditherEffect" panel via entrypoints.setup().
-                              Also defines flyout menu with "Reload Plugin" command.
   controllers/
     PanelController.jsx     — Generic panel lifecycle controller (create/show/hide/destroy/invokeMenu).
-                              Uses ReactDOM.render() — standard for React 16 in UXP.
-    CommandController.jsx   — Generic dialog/command controller (unused by dither, leftover from starter).
   panels/
-    DitherEffect.jsx        — Main UI panel. All state management, user event handlers, live mode logic.
+    DitherEffect.jsx        — Main UI panel. All state management, event handlers, live mode logic.
+                              Settings persist to localStorage. usePickerRef() hook for sp-picker events.
     DitherEffect.css        — Full panel styling with CSS variables, dark/light theme support.
-    Demos.jsx               — Leftover starter panel (ColorPicker demo). Not registered, not loaded.
-    MoreDemos.jsx            — Leftover starter panel. Not registered, not loaded.
-  components/
-    ColorPicker.jsx         — Leftover starter component. Not used by dither plugin.
-    ColorPicker.css         — Leftover.
-    Hello.jsx               — Leftover starter component.
-    Icons.jsx / Icons.css   — Leftover starter component.
-    WC.jsx                  — Leftover web component wrapper for React event bridging. Not used.
   core/
-    index.js                — Barrel export for all core modules.
-    effectProcessor.js      — Pipeline orchestrator. Manages `processingState` (cached original pixels,
+    effectProcessor.js      — Pipeline orchestrator. Manages processingState (cached original pixels,
                               dithered layer ID, document ID). Exposes initialApply(), updateEffect(),
-                              resetEffect(), processPixels().
-    ditherAlgorithms.js     — 9 dither algorithms: none, bayer-2x2/4x4/8x8, floyd-steinberg,
-                              atkinson, pattern-a/b, random. Each operates on Uint8Array pixel buffers.
-    preprocessing.js        — Image preprocessing: box blur (2-pass separable), unsharp mask sharpen,
-                              brightness, contrast, noise, grayscale. Applied in fixed order.
-    colorMapping.js         — Post-dither color mapping: mono, duotone, tritone.
-                              Uses luminance-based interpolation between user-defined colors.
+                              commitEffect(), resetEffect(), processPixels().
+    ditherAlgorithms.js     — 27 dither algorithms: generic error diffusion engine with kernel lookup,
+                              ordered dithering with 13 matrices, halftone with angle rotation,
+                              pixel scaling (downscale → dither → upscale), random noise.
+    preprocessing.js        — Image preprocessing: box blur, unsharp mask, brightness, contrast,
+                              gamma correction (LUT-based), noise, grayscale. Applied in fixed order.
+    colorMapping.js         — Post-dither color mapping: mono, duotone, tritone, indexed palette (13 presets).
+                              Color overlay blends original colors onto dithered luminance.
   ps/
-    index.js                — Barrel export for layerManager.
     layerManager.js         — All Photoshop API interactions: getLayerPixels, putLayerPixels,
-                              setupDitherStructureInternal (duplicate + hide + snapshot),
-                              revertToSnapshot, validateLayer.
-  styles.css                — Minimal global styles (tab bar layout from starter template).
+                              getFlattenedPixels, getSelectionPixels, setupDitherStructureInternal,
+                              revertToSnapshot, finalizeDither, validateLayer.
 
 plugin/
-  manifest.json             — UXP manifest v5. Single panel "ditherEffect". Permissions: fullAccess
-                              filesystem, allowCodeGenerationFromStrings (required for eval-based source maps).
+  manifest.json             — UXP manifest v5. Single panel "ditherEffect".
   index.html                — Entry HTML. Sets global.screen={} shim and loads index.js.
   icons/                    — Plugin icons (dark/light themes, 1x/2x scale).
 
-dist/                       — Webpack output. Kept in repo for direct UXP loading. Contains compiled
-                              index.js + copies of plugin/ assets.
+dist/                       — Webpack output. Kept in repo for direct UXP loading.
 ```
 
 ## Processing Pipeline (Order Matters)
@@ -71,52 +59,30 @@ dist/                       — Webpack output. Kept in repo for direct UXP load
 1. getLayerPixels(sourceLayer)     → Uint8Array (RGBA or RGB, chunky)
 2. Cache in processingState.originalPixels (copied, not referenced)
 3. applyPreprocessing():
-   blur → sharpen → brightness → contrast → noise → grayscale
+   blur → sharpen → brightness → contrast → gamma → noise → grayscale
 4. applyDitherAlgorithm():
-   Dispatches to selected algorithm (bayer, floyd-steinberg, atkinson, etc.)
-5. applyColorMapping():    (if mode !== 'none')
-   Maps luminance to user-defined shadow/midtone/highlight colors
-6. putLayerPixels()        → writes result to the "(Dithered)" layer
+   Dispatches to selected algorithm. Handles pixel scaling (down → dither → up).
+5. Invert (if enabled)
+6. Transparency skip (preserves original pixels below alpha threshold)
+7. applyColorMapping():    (if mode !== 'none')
+   Maps luminance to user-defined colors or indexed palette
+8. applyColorOverlay():    (if colorOverlay > 0)
+   Blends original image colors onto dithered luminance
+9. putLayerPixels()        → writes result to the "(Dithered)" layer
 ```
-On subsequent slider changes (live mode), steps 3-6 re-run from the cached original pixels. No re-read from Photoshop is needed.
+On subsequent slider changes (live mode), steps 3-9 re-run from the cached original pixels.
 
-## Known Issues (Track These — See progresslog.md for Full History)
-### Remaining TODO
-- No presets/save/load for settings
+## Known Issues
 - No `executionContext.isCancelled` check during long processing (large images could freeze PS)
-- `rgbToHex()` exported from colorMapping.js but never called (may be useful for future preset export)
-- Debug console logging still present (remove before production release)
-
-### Fixed in v1.2.0
-- `putPixels` silent failure — colorProfile from `getPixels` rejected by `createImageDataFromBuffer` (error -26120)
-- UXP Bounds underscore properties (`_left` vs `left`) — normalized across all bounds access
-- `sp-picker` events broken in React — replaced with `usePickerRef` hook using direct `addEventListener`
-- Added "Done" button — unhides original, keeps dithered layer on top, exits live mode
-- Default colorDepth changed to 1 (2 levels) for dramatic dithering
-
-### Fixed in v1.1.1
-- Target picker fully wired — `initialApply()` dispatches on `settings.target` (active-layer, flattened, selection)
-- `getFlattenedPixels()` uses composite mode (no temp layer) for cleaner flattened reads
-- `getSelectionPixels()` reads from active selection bounds, falls back to full layer
-- Sharpen Radius UI slider — conditionally shown when sharpenStrength > 0
-- Tritone threshold sliders — Shadow Threshold (10–120), Highlight Threshold (130–245)
-
-### Fixed in v1.1.0
-- smartObject validation dead branch — FIXED (moved check before array)
-- Pixel read from hidden layer — FIXED (read before hide)
-- Mono/Duotone identical — FIXED (Mono snaps, Duotone uses S-curve)
-- Tritone midtone double-lerp — FIXED (flat midtone)
-- PanelController enabled always true — FIXED (nullish coalescing)
-- `scale` dead parameter — REMOVED
-- All starter template dead code — DELETED (12 files)
+- Changing target mode (active layer / flattened / selection) during live mode has no effect — requires re-apply
 
 ## Code Style
-- Functional React with hooks only (no class components, except the PanelController which is a class)
-- Use `useRef` for mutable values that must not cause re-renders (processing flags, debounce timers, live mode state)
+- Functional React with hooks only (no class components, except PanelController which is a class)
+- Use `useRef` for mutable values that must not cause re-renders (processing flags, debounce timers)
 - Debounce live updates at 200ms using `setTimeout` + `clearTimeout`
-- Export metadata arrays (`DITHER_ALGORITHMS`, `COLOR_MODES`) from core modules for UI consumption
 - Guard concurrent operations with `isProcessingRef.current` ref flag, not state
 - Alpha channel (4th component when `components === 4`) is always preserved/passed through unchanged
+- Hex color textfield input validated with regex before updating state
 
 ## Building & Loading
 ```bash
@@ -126,19 +92,16 @@ npm run watch              # Dev mode — rebuilds on file change via nodemon
 ```
 Load via **UXP Developer Tools** → **Add Plugin** → select `dist/manifest.json` → **Load**.
 
-Note: `npm run build` runs webpack in development mode (not production). The webpack config uses `eval-cheap-source-map` devtool which requires `allowCodeGenerationFromStrings: true` in the manifest.
-
 ## GitHub & Version Control
 - **Repo:** https://github.com/DanielMevit/Dither-FX-1 (private)
 - **Push from WSL:** use `powershell.exe -Command "Set-Location 'D:\Vibe Coding\Photoshop Plugins\Dither FX 1'; git push origin main"` — Git credentials live on the Windows side, not in WSL
-- **Always push after completing a session's work.** The repo is the online backup and version control source of truth.
 - **Commit messages:** short summary line, blank line, bullet points of changes. Include `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>` at end.
 - **Never force push to main.**
 
 ## When Making Changes
 1. Run `npm run build` after editing — verify 0 errors, 0 warnings
-2. Reload the plugin in UXP Developer Tools (or use the flyout menu "Reload Plugin" for hot reloads during `watch`)
-3. Test with: a normal pixel layer, a smart object (should reject with error), a locked layer (should reject), an empty layer (should reject)
+2. Reload the plugin in UXP Developer Tools
+3. Test with: a normal pixel layer, a smart object (should reject), a locked layer (should reject), an empty layer (should reject)
 4. After applying: verify the original layer is hidden, the "(Dithered)" copy is visible and correct
 5. After resetting: verify the document reverts to the pre-dither snapshot state
 6. Test live mode: move a slider after initial apply — should update within ~200ms

@@ -59,6 +59,11 @@ export function validateLayer(layer) {
         return { valid: false, error: "Layer appears to be empty" };
     }
 
+    const pixelCount = width * height;
+    if (pixelCount > 50_000_000) {
+        return { valid: false, error: `Image too large (${width}x${height} = ${Math.round(pixelCount/1_000_000)}M pixels). Maximum supported is ~50M pixels.` };
+    }
+
     return { valid: true, width, height, bounds: { left, top, right, bottom } };
 }
 

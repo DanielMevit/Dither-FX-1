@@ -6,8 +6,7 @@ import {
     resetEffect,
     commitEffect,
     isEffectInitialized,
-    getDefaultSettings,
-    resetProcessingState
+    getDefaultSettings
 } from "../core/effectProcessor.js";
 
 /**
@@ -83,6 +82,13 @@ export const DitherEffect = () => {
     const updateSetting = useCallback((key, value) => {
         setSettings(prev => ({ ...prev, [key]: value }));
     }, []);
+
+    // Hex color update with validation
+    const updateColorSetting = useCallback((key, value) => {
+        if (/^#[a-f\d]{6}$/i.test(value)) {
+            updateSetting(key, value);
+        }
+    }, [updateSetting]);
 
     // Picker refs — direct DOM event listeners for sp-picker
     const targetPickerRef = usePickerRef((value) => updateSetting('target', value));
@@ -526,7 +532,7 @@ export const DitherEffect = () => {
                     </div>
 
                     <div className="control-row slider-row">
-                        <sp-label size="S">Gamma: {(settings.gamma || 1.0).toFixed(1)}</sp-label>
+                        <sp-label size="S">Gamma: {(settings.gamma || 1.0).toFixed(1)}{(settings.gamma || 1.0) === 1.0 ? ' (neutral)' : (settings.gamma || 1.0) < 1.0 ? ' (brighter)' : ' (darker)'}</sp-label>
                         <sp-slider
                             min="2"
                             max="30"
@@ -623,7 +629,7 @@ export const DitherEffect = () => {
                                     <sp-textfield
                                         size="s"
                                         value={settings.shadowColor}
-                                        onInput={(e) => updateSetting('shadowColor', e.target.value)}
+                                        onInput={(e) => updateColorSetting('shadowColor', e.target.value)}
                                     ></sp-textfield>
                                 </div>
                             </div>
@@ -641,7 +647,7 @@ export const DitherEffect = () => {
                                         <sp-textfield
                                             size="s"
                                             value={settings.midtoneColor}
-                                            onInput={(e) => updateSetting('midtoneColor', e.target.value)}
+                                            onInput={(e) => updateColorSetting('midtoneColor', e.target.value)}
                                         ></sp-textfield>
                                     </div>
                                 </div>
@@ -659,7 +665,7 @@ export const DitherEffect = () => {
                                     <sp-textfield
                                         size="s"
                                         value={settings.highlightColor}
-                                        onInput={(e) => updateSetting('highlightColor', e.target.value)}
+                                        onInput={(e) => updateColorSetting('highlightColor', e.target.value)}
                                     ></sp-textfield>
                                 </div>
                             </div>

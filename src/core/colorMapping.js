@@ -16,16 +16,6 @@ export function hexToRgb(hex) {
 }
 
 /**
- * Convert RGB to hex string
- */
-export function rgbToHex(r, g, b) {
-    return '#' + [r, g, b].map(x => {
-        const hex = Math.max(0, Math.min(255, Math.round(x))).toString(16);
-        return hex.length === 1 ? '0' + hex : hex;
-    }).join('');
-}
-
-/**
  * Linear interpolation between two colors
  */
 function lerpColor(color1, color2, t) {
@@ -336,18 +326,3 @@ export const PALETTE_PRESETS = {
     }
 };
 
-// Color mode metadata for UI
-export const COLOR_MODES = [
-    { value: 'none', label: 'None (Original Colors)' },
-    { value: 'mono', label: 'Mono (2 Colors)' },
-    { value: 'duotone', label: 'Duotone' },
-    { value: 'tritone', label: 'Tri-tone' },
-    { value: 'palette', label: 'Palette (Indexed)' }
-];
-
-// Default color presets
-export const DEFAULT_COLORS = {
-    shadow: '#000000',
-    midtone: '#808080',
-    highlight: '#ffffff'
-};
