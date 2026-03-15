@@ -74,6 +74,66 @@ const PATTERN_B = [
     2, 0, 3, 1, 2, 0, 3, 1
 ].map(v => (v / 8) - 0.5);
 
+// Knit stitch pattern — V-shapes mimicking knitted fabric
+const KNIT_8x8 = [
+    7, 5, 0, 2, 2, 0, 5, 7,
+    6, 3, 1, 4, 4, 1, 3, 6,
+    5, 1, 3, 6, 6, 3, 1, 5,
+    3, 0, 5, 7, 7, 5, 0, 3,
+    2, 0, 5, 7, 7, 5, 0, 2,
+    5, 1, 3, 6, 6, 3, 1, 5,
+    6, 3, 1, 4, 4, 1, 3, 6,
+    7, 5, 0, 2, 2, 0, 5, 7
+].map(v => (v / 8) - 0.5);
+
+// Circuit board trace pattern — grid lines with pads
+const CIRCUIT_8x8 = [
+    0, 7, 7, 7, 0, 5, 5, 5,
+    7, 1, 3, 7, 5, 2, 4, 5,
+    7, 3, 1, 7, 5, 4, 2, 5,
+    7, 7, 7, 0, 5, 5, 5, 0,
+    0, 5, 5, 5, 0, 7, 7, 7,
+    5, 2, 4, 5, 7, 1, 3, 7,
+    5, 4, 2, 5, 7, 3, 1, 7,
+    5, 5, 5, 0, 7, 7, 7, 0
+].map(v => (v / 8) - 0.5);
+
+// Star/sparkle pattern — radial star bursts
+const STAR_8x8 = [
+    7, 6, 5, 0, 0, 5, 6, 7,
+    6, 7, 3, 1, 1, 3, 7, 6,
+    5, 3, 7, 2, 2, 7, 3, 5,
+    0, 1, 2, 7, 7, 2, 1, 0,
+    0, 1, 2, 7, 7, 2, 1, 0,
+    5, 3, 7, 2, 2, 7, 3, 5,
+    6, 7, 3, 1, 1, 3, 7, 6,
+    7, 6, 5, 0, 0, 5, 6, 7
+].map(v => (v / 8) - 0.5);
+
+// Cyber/scanline pattern — horizontal scan lines with digital noise feel
+const CYBER_8x8 = [
+    0, 0, 0, 0, 0, 0, 0, 0,
+    7, 5, 3, 1, 1, 3, 5, 7,
+    2, 2, 2, 2, 2, 2, 2, 2,
+    7, 6, 4, 3, 3, 4, 6, 7,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    6, 4, 2, 1, 1, 2, 4, 6,
+    3, 3, 3, 3, 3, 3, 3, 3,
+    7, 5, 4, 2, 2, 4, 5, 7
+].map(v => (v / 8) - 0.5);
+
+// Diamond pattern
+const DIAMOND_8x8 = [
+    7, 6, 5, 4, 3, 4, 5, 6,
+    6, 5, 4, 3, 2, 3, 4, 5,
+    5, 4, 3, 2, 1, 2, 3, 4,
+    4, 3, 2, 1, 0, 1, 2, 3,
+    3, 4, 5, 6, 7, 6, 5, 4,
+    4, 5, 6, 7, 6, 7, 6, 5,
+    5, 6, 7, 6, 5, 6, 7, 6,
+    6, 7, 6, 5, 4, 5, 6, 7
+].map(v => (v / 8) - 0.5);
+
 // Cross-hatch pattern
 const CROSSHATCH_8x8 = [
     0, 12, 8, 4, 0, 12, 8, 4,
@@ -173,7 +233,7 @@ export function noDither(input, width, height, components, colorDepth) {
  * Generic error diffusion dithering engine
  * Supports all kernel-based algorithms + optional serpentine scanning
  */
-export function errorDiffusionDither(input, width, height, components, colorDepth, intensity, kernelName, serpentine = false) {
+export function errorDiffusionDither(input, width, height, components, colorDepth, intensity, kernelName, serpentine = false, spread = 1.0) {
     const kernel = KERNELS[kernelName];
     if (!kernel) return noDither(input, width, height, components, colorDepth);
 
@@ -200,7 +260,7 @@ export function errorDiffusionDither(input, width, height, components, colorDept
                 const i = idx + c;
                 const oldVal = buffer[i];
                 const newVal = Math.round(oldVal / step) * step;
-                const error = (oldVal - newVal) * intensity / kernel.divisor;
+                const error = (oldVal - newVal) * intensity * spread / kernel.divisor;
 
                 buffer[i] = newVal;
 
@@ -245,6 +305,11 @@ export function orderedDither(input, width, height, components, colorDepth, inte
         case 'crosshatch': matrix = CROSSHATCH_8x8; size = 8; break;
         case 'pattern-a': matrix = PATTERN_A; size = 8; break;
         case 'pattern-b': matrix = PATTERN_B; size = 8; break;
+        case 'knit': matrix = KNIT_8x8; size = 8; break;
+        case 'circuit': matrix = CIRCUIT_8x8; size = 8; break;
+        case 'star': matrix = STAR_8x8; size = 8; break;
+        case 'cyber': matrix = CYBER_8x8; size = 8; break;
+        case 'diamond': matrix = DIAMOND_8x8; size = 8; break;
         default: matrix = BAYER_8x8; size = 8; break;
     }
 
@@ -419,7 +484,8 @@ export function applyDitherAlgorithm(pixelData, width, height, components, optio
         colorDepth = 1,
         intensity = 1.0,
         pixelScale = 1,
-        halftoneSize = 6
+        halftoneSize = 6,
+        spread = 1.0
     } = options;
 
     let workPixels = pixelData;
@@ -448,11 +514,17 @@ export function applyDitherAlgorithm(pixelData, width, height, components, optio
         case 'halftone-dot':
         case 'cluster':
         case 'crosshatch':
+        case 'knit':
+        case 'circuit':
+        case 'star':
+        case 'cyber':
+        case 'diamond':
         case 'pattern-a':
         case 'pattern-b':
             const matrixMap = {
                 'bayer-2x2': 'bayer-2x2', 'bayer-4x4': 'bayer-4x4', 'bayer-8x8': 'bayer-8x8',
                 'halftone-dot': 'halftone', 'cluster': 'cluster', 'crosshatch': 'crosshatch',
+                'knit': 'knit', 'circuit': 'circuit', 'star': 'star', 'cyber': 'cyber', 'diamond': 'diamond',
                 'pattern-a': 'pattern-a', 'pattern-b': 'pattern-b'
             };
             result = orderedDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, matrixMap[algorithm]);
@@ -460,31 +532,31 @@ export function applyDitherAlgorithm(pixelData, width, height, components, optio
 
         // Error diffusion
         case 'floyd-steinberg':
-            result = errorDiffusionDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 'floyd-steinberg');
+            result = errorDiffusionDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 'floyd-steinberg', false, spread);
             break;
         case 'floyd-steinberg-serpentine':
-            result = errorDiffusionDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 'floyd-steinberg', true);
+            result = errorDiffusionDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 'floyd-steinberg', true, spread);
             break;
         case 'jarvis':
-            result = errorDiffusionDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 'jarvis');
+            result = errorDiffusionDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 'jarvis', false, spread);
             break;
         case 'stucki':
-            result = errorDiffusionDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 'stucki');
+            result = errorDiffusionDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 'stucki', false, spread);
             break;
         case 'burkes':
-            result = errorDiffusionDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 'burkes');
+            result = errorDiffusionDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 'burkes', false, spread);
             break;
         case 'sierra':
-            result = errorDiffusionDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 'sierra');
+            result = errorDiffusionDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 'sierra', false, spread);
             break;
         case 'sierra-two-row':
-            result = errorDiffusionDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 'sierra-two-row');
+            result = errorDiffusionDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 'sierra-two-row', false, spread);
             break;
         case 'sierra-lite':
-            result = errorDiffusionDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 'sierra-lite');
+            result = errorDiffusionDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 'sierra-lite', false, spread);
             break;
         case 'atkinson':
-            result = errorDiffusionDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 'atkinson');
+            result = errorDiffusionDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 'atkinson', false, spread);
             break;
 
         // Halftone
@@ -543,6 +615,11 @@ export const DITHER_ALGORITHMS = [
 
     { value: 'pattern-a', label: 'Pattern A', category: 'Pattern' },
     { value: 'pattern-b', label: 'Pattern B', category: 'Pattern' },
+    { value: 'knit', label: 'Knit Stitch', category: 'Artistic' },
+    { value: 'circuit', label: 'Circuit Board', category: 'Artistic' },
+    { value: 'star', label: 'Star Burst', category: 'Artistic' },
+    { value: 'cyber', label: 'Cyber Scanline', category: 'Artistic' },
+    { value: 'diamond', label: 'Diamond', category: 'Artistic' },
 
     { value: 'random', label: 'Random Noise', category: 'Other' }
 ];

@@ -221,11 +221,6 @@ export async function putLayerPixels(documentID, layerID, pixelData, imageInfo) 
     const boundsLeft = imageInfo.bounds.left ?? imageInfo.bounds._left ?? 0;
     const boundsTop = imageInfo.bounds.top ?? imageInfo.bounds._top ?? 0;
 
-    console.log("[Dither] putLayerPixels: docID:", documentID, "layerID:", layerID,
-        "size:", imageInfo.width, "x", imageInfo.height,
-        "components:", imageInfo.components, "bytes:", pixelData.length,
-        "targetBounds: left:", boundsLeft, "top:", boundsTop);
-
     try {
         const newImageData = await imaging.createImageDataFromBuffer(
             pixelData,
@@ -237,8 +232,6 @@ export async function putLayerPixels(documentID, layerID, pixelData, imageInfo) 
                 chunky: true
             }
         );
-        console.log("[Dither] createImageDataFromBuffer succeeded, imageData:", newImageData ? "OK" : "NULL");
-
         await imaging.putPixels({
             documentID: documentID,
             layerID: layerID,
@@ -246,8 +239,6 @@ export async function putLayerPixels(documentID, layerID, pixelData, imageInfo) 
             targetBounds: { left: boundsLeft, top: boundsTop },
             replace: true
         });
-        console.log("[Dither] putPixels completed successfully");
-
         // Cleanup
         try {
             if (newImageData.dispose) newImageData.dispose();

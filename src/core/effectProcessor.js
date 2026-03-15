@@ -76,6 +76,7 @@ export function getDefaultSettings() {
         intensity: 1.0,
         pixelScale: 1,
         halftoneSize: 6,
+        spread: 1.0,
         invert: false,
         transparencyThreshold: 0,
         
@@ -95,14 +96,6 @@ export function getDefaultSettings() {
  * Process pixel data through the effect pipeline
  */
 export function processPixels(pixels, width, height, components, settings) {
-    const startTime = Date.now();
-
-    console.log("[Dither] processPixels called:", width, "x", height, "components:", components, "total bytes:", pixels.length);
-    console.log("[Dither] settings:", JSON.stringify({ algorithm: settings.algorithm, colorDepth: settings.colorDepth, intensity: settings.intensity }));
-
-    // Sample first pixel before processing
-    console.log("[Dither] Input pixel[0]:", pixels[0], pixels[1], pixels[2], components === 4 ? pixels[3] : "");
-
     // Step 1: Preprocessing
     let processed = applyPreprocessing(pixels, width, height, components, {
         blur: settings.blur,
@@ -121,7 +114,8 @@ export function processPixels(pixels, width, height, components, settings) {
         colorDepth: settings.colorDepth,
         intensity: settings.intensity,
         pixelScale: settings.pixelScale || 1,
-        halftoneSize: settings.halftoneSize || 6
+        halftoneSize: settings.halftoneSize || 6,
+        spread: settings.spread ?? 1.0
     });
 
     // Step 2b: Invert
@@ -147,17 +141,6 @@ export function processPixels(pixels, width, height, components, settings) {
         }
     }
 
-    // Sample first pixel after dithering
-    console.log("[Dither] Output pixel[0]:", processed[0], processed[1], processed[2], components === 4 ? processed[3] : "");
-
-    // Count how many pixels changed
-    let changedCount = 0;
-    const sampleSize = Math.min(pixels.length, 10000);
-    for (let i = 0; i < sampleSize; i++) {
-        if (processed[i] !== pixels[i]) changedCount++;
-    }
-    console.log("[Dither] Changed bytes in first", sampleSize, ":", changedCount, "(", Math.round(changedCount/sampleSize*100), "%)");
-
     // Step 3: Color mapping
     if (settings.colorMode && settings.colorMode !== 'none') {
         processed = applyColorMapping(processed, width, height, components, {
@@ -176,7 +159,6 @@ export function processPixels(pixels, width, height, components, settings) {
         processed = applyColorOverlay(processed, pixels, width, height, components, settings.colorOverlay);
     }
 
-    console.log("[Dither] Processing time:", Date.now() - startTime, "ms");
     return processed;
 }
 
@@ -207,7 +189,6 @@ export async function initialApply(layer, settings, onProgress) {
         
         // Read pixels based on target setting
         onProgress?.("Reading pixels...");
-        console.log("[Dither] Reading pixels, target:", settings.target, "layer:", layer.name, "id:", layer.id);
         let pixelData;
         switch (settings.target) {
             case 'flattened':
@@ -221,12 +202,9 @@ export async function initialApply(layer, settings, onProgress) {
                 pixelData = await getLayerPixels(layer);
                 break;
         }
-        console.log("[Dither] Got pixels:", pixelData.width, "x", pixelData.height, "components:", pixelData.components, "bytes:", pixelData.pixels.length);
-
         // Setup structure (creates dithered layer, hides original)
         onProgress?.("Creating layers...");
         const structure = await setupDitherStructureInternal(action, app, layer);
-        console.log("[Dither] Dithered layer created, id:", structure.ditheredLayer.id, "name:", structure.ditheredLayer.name);
 
         // Store references
         processingState.documentId = doc.id;

@@ -23,7 +23,6 @@ function usePickerRef(callback) {
         const el = ref.current;
         if (!el) return;
         const handler = (e) => {
-            console.log("[Dither] Picker change:", e.target.value);
             callbackRef.current(e.target.value);
         };
         el.addEventListener('change', handler);
@@ -195,8 +194,6 @@ export const DitherEffect = () => {
             if (!activeLayer) {
                 throw new Error("No layer selected. Please select a layer.");
             }
-
-            console.log("[Dither] Applying with settings:", JSON.stringify(settings));
 
             await initialApply(activeLayer, settings, (msg) => {
                 setStatus({ type: 'processing', message: msg });
@@ -382,6 +379,14 @@ export const DitherEffect = () => {
                                 <sp-menu-item value="pattern-b">Pattern B</sp-menu-item>
 
                                 <sp-divider size="small"></sp-divider>
+                                <sp-label className="dropdown-category">ARTISTIC</sp-label>
+                                <sp-menu-item value="knit">Knit Stitch</sp-menu-item>
+                                <sp-menu-item value="circuit">Circuit Board</sp-menu-item>
+                                <sp-menu-item value="star">Star Burst</sp-menu-item>
+                                <sp-menu-item value="cyber">Cyber Scanline</sp-menu-item>
+                                <sp-menu-item value="diamond">Diamond</sp-menu-item>
+
+                                <sp-divider size="small"></sp-divider>
                                 <sp-label className="dropdown-category">OTHER</sp-label>
                                 <sp-menu-item value="random">Random Noise</sp-menu-item>
                             </sp-menu>
@@ -417,6 +422,18 @@ export const DitherEffect = () => {
                             onInput={(e) => updateSetting('pixelScale', parseInt(e.target.value))}
                         ></sp-slider>
                     </div>
+
+                    {['floyd-steinberg', 'floyd-steinberg-serpentine', 'jarvis', 'stucki', 'burkes', 'sierra', 'sierra-two-row', 'sierra-lite', 'atkinson'].includes(settings.algorithm) && (
+                        <div className="control-row slider-row">
+                            <sp-label size="S">Error Spread: {Math.round((settings.spread ?? 1.0) * 100)}%</sp-label>
+                            <sp-slider
+                                min="0"
+                                max="200"
+                                value={Math.round((settings.spread ?? 1.0) * 100)}
+                                onInput={(e) => updateSetting('spread', parseInt(e.target.value) / 100)}
+                            ></sp-slider>
+                        </div>
+                    )}
 
                     {(settings.algorithm === 'halftone-0' || settings.algorithm === 'halftone-22' || settings.algorithm === 'halftone-45') && (
                         <div className="control-row slider-row">
