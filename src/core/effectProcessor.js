@@ -5,7 +5,7 @@
 
 import { applyPreprocessing } from './preprocessing.js';
 import { applyDitherAlgorithm } from './ditherAlgorithms.js';
-import { applyColorMapping } from './colorMapping.js';
+import { applyColorMapping, applyColorOverlay } from './colorMapping.js';
 import {
     getLayerPixels,
     getFlattenedPixels,
@@ -82,7 +82,9 @@ export function getDefaultSettings() {
         midtoneColor: '#808080',
         highlightColor: '#ffffff',
         shadowThreshold: 85,
-        highlightThreshold: 170
+        highlightThreshold: 170,
+        palettePreset: 'grayscale-4',
+        colorOverlay: 0
     };
 }
 
@@ -137,8 +139,14 @@ export function processPixels(pixels, width, height, components, settings) {
             midtoneColor: settings.midtoneColor,
             highlightColor: settings.highlightColor,
             shadowThreshold: settings.shadowThreshold,
-            highlightThreshold: settings.highlightThreshold
+            highlightThreshold: settings.highlightThreshold,
+            palettePreset: settings.palettePreset
         });
+    }
+
+    // Step 4: Color overlay (blend original colors onto dithered output)
+    if (settings.colorOverlay > 0) {
+        processed = applyColorOverlay(processed, pixels, width, height, components, settings.colorOverlay);
     }
 
     console.log("[Dither] Processing time:", Date.now() - startTime, "ms");

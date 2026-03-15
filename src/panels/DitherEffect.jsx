@@ -89,6 +89,7 @@ export const DitherEffect = () => {
     const targetPickerRef = usePickerRef((value) => updateSetting('target', value));
     const algorithmPickerRef = usePickerRef((value) => updateSetting('algorithm', value));
     const colorModePickerRef = usePickerRef((value) => updateSetting('colorMode', value));
+    const palettePickerRef = usePickerRef((value) => updateSetting('palettePreset', value));
 
     // Live update handler - uses refs to avoid dependency issues
     const handleLiveUpdate = useCallback(async () => {
@@ -524,11 +525,43 @@ export const DitherEffect = () => {
                                 <sp-menu-item value="mono">Mono (2 Colors)</sp-menu-item>
                                 <sp-menu-item value="duotone">Duotone</sp-menu-item>
                                 <sp-menu-item value="tritone">Tri-tone</sp-menu-item>
+                                <sp-menu-item value="palette">Palette (Indexed)</sp-menu-item>
                             </sp-menu>
                         </sp-picker>
                     </div>
 
-                    {settings.colorMode !== 'none' && (
+                    {settings.colorMode === 'palette' && (
+                        <div className="control-row">
+                            <sp-label size="S">Palette</sp-label>
+                            <sp-picker
+                                ref={palettePickerRef}
+                                size="s"
+                                value={settings.palettePreset}
+                            >
+                                <sp-menu slot="options">
+                                    <sp-label className="dropdown-category">RETRO</sp-label>
+                                    <sp-menu-item value="gameboy">Game Boy</sp-menu-item>
+                                    <sp-menu-item value="gameboy-pocket">Game Boy Pocket</sp-menu-item>
+                                    <sp-menu-item value="cga-0">CGA Cyan</sp-menu-item>
+                                    <sp-menu-item value="cga-1">CGA Red</sp-menu-item>
+                                    <sp-menu-item value="commodore-64">Commodore 64</sp-menu-item>
+                                    <sp-menu-item value="nes">NES</sp-menu-item>
+                                    <sp-menu-item value="pico-8">PICO-8</sp-menu-item>
+                                    <sp-menu-item value="apple-ii">Apple II</sp-menu-item>
+
+                                    <sp-divider size="small"></sp-divider>
+                                    <sp-label className="dropdown-category">MONOCHROME</sp-label>
+                                    <sp-menu-item value="mono-green">Mono Green</sp-menu-item>
+                                    <sp-menu-item value="mono-amber">Mono Amber</sp-menu-item>
+                                    <sp-menu-item value="sepia">Sepia</sp-menu-item>
+                                    <sp-menu-item value="grayscale-4">Grayscale 4</sp-menu-item>
+                                    <sp-menu-item value="grayscale-8">Grayscale 8</sp-menu-item>
+                                </sp-menu>
+                            </sp-picker>
+                        </div>
+                    )}
+
+                    {settings.colorMode !== 'none' && settings.colorMode !== 'palette' && (
                         <>
                             <div className="control-row color-row">
                                 <sp-label size="S">Shadow Color</sp-label>
@@ -607,6 +640,16 @@ export const DitherEffect = () => {
                             )}
                         </>
                     )}
+
+                    <div className="control-row slider-row">
+                        <sp-label size="S">Color Overlay: {settings.colorOverlay || 0}%</sp-label>
+                        <sp-slider
+                            min="0"
+                            max="100"
+                            value={settings.colorOverlay || 0}
+                            onInput={(e) => updateSetting('colorOverlay', parseInt(e.target.value))}
+                        ></sp-slider>
+                    </div>
                 </div>
             </div>
 
