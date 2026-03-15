@@ -73,6 +73,7 @@ export function getDefaultSettings() {
         algorithm: 'floyd-steinberg',
         colorDepth: 1,
         intensity: 1.0,
+        pixelScale: 1,
         
         // Color mapping
         colorMode: 'none',
@@ -111,7 +112,8 @@ export function processPixels(pixels, width, height, components, settings) {
     processed = applyDitherAlgorithm(processed, width, height, components, {
         algorithm: settings.algorithm,
         colorDepth: settings.colorDepth,
-        intensity: settings.intensity
+        intensity: settings.intensity,
+        pixelScale: settings.pixelScale || 1
     });
 
     // Sample first pixel after dithering

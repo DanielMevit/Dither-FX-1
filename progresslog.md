@@ -284,3 +284,59 @@ Removed unused exports:
 - No presets/save/load for settings
 - Research findings from dither tools not yet incorporated
 - Debug logging still present (remove before production)
+
+---
+
+## 2026-03-15 18:00 CET — Major Algorithm Expansion & Pixel Scale (Opus)
+
+**By:** Claude Opus 4.6 (feature implementation based on competitor analysis)
+
+### Competitor Analysis
+Analyzed two commercial plugins installed on user's system:
+- **DITHERTONE PRO v1.1.0** ($75) — 33 algorithms, tonal mapping, mask mode, transparency/knockout
+- **Dither Pusher** ($40) — 25 algorithms + 20 pattern maps, custom error weights, vector output, pixel scaling
+
+### Algorithms Added (9 → 22 total)
+
+**New Error Diffusion (6):**
+- Jarvis-Judice-Ninke (3-row, 12-neighbor kernel)
+- Stucki (3-row, 12-neighbor kernel)
+- Burkes (2-row, 7-neighbor kernel)
+- Sierra (full 3-row)
+- Sierra Two-Row
+- Sierra Lite (simplified 3-neighbor)
+
+**New Ordered (3):**
+- Halftone Dot (5x5 radial pattern)
+- Cluster Dot (8x8 cluster pattern)
+- Crosshatch (8x8 cross-hatch pattern)
+
+**New Halftone with Angle (3):**
+- Halftone 0° (straight radial dots)
+- Halftone 22.5° (rotated)
+- Halftone 45° (diagonal — newspaper look)
+
+**New Variant (1):**
+- Floyd-Steinberg Serpentine (alternating scan direction per row)
+
+### Architecture Improvements
+
+- **Generic error diffusion engine** — all error diffusion algorithms now use a single `errorDiffusionDither()` function with kernel definitions in a `KERNELS` lookup table. Adding new kernels = just adding an entry.
+- **Serpentine scanning support** — built into the generic engine, toggleable per algorithm
+- **Pixel Scale** (1-16x) — downscales image before dithering with nearest-neighbor, upscales back after. Creates chunky pixel art look. Both competitors have this feature.
+
+### UI Changes
+- Algorithm dropdown expanded from 9 to 22 entries with new category sections (Ordered, Halftone)
+- Pixel Scale slider added (1-16x) in Dither Algorithm section
+
+### Build
+- Webpack compiles successfully with 0 errors
+
+### Remaining TODO
+- Custom palette / indexed color mode
+- Transparency handling for layers with alpha
+- Save/load settings persistence
+- Exposed error diffusion weights (user-tweakable kernels)
+- Pattern/artistic algorithms (Knitt, Circuit, Star, Cyber)
+- Color Embue (overlay original colors on dithered output)
+- Debug logging still present

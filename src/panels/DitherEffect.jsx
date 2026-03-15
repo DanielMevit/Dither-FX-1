@@ -315,20 +315,36 @@ export const DitherEffect = () => {
                                 <sp-menu-item value="none">None (Quantize Only)</sp-menu-item>
 
                                 <sp-divider size="small"></sp-divider>
-                                <sp-label className="dropdown-category">ORDERED (BAYER)</sp-label>
+                                <sp-label className="dropdown-category">ORDERED</sp-label>
                                 <sp-menu-item value="bayer-2x2">Bayer 2x2</sp-menu-item>
                                 <sp-menu-item value="bayer-4x4">Bayer 4x4</sp-menu-item>
                                 <sp-menu-item value="bayer-8x8">Bayer 8x8</sp-menu-item>
+                                <sp-menu-item value="halftone-dot">Halftone Dot</sp-menu-item>
+                                <sp-menu-item value="cluster">Cluster Dot</sp-menu-item>
+                                <sp-menu-item value="crosshatch">Crosshatch</sp-menu-item>
 
                                 <sp-divider size="small"></sp-divider>
                                 <sp-label className="dropdown-category">ERROR DIFFUSION</sp-label>
                                 <sp-menu-item value="floyd-steinberg">Floyd-Steinberg</sp-menu-item>
+                                <sp-menu-item value="floyd-steinberg-serpentine">Floyd-Steinberg (Serpentine)</sp-menu-item>
+                                <sp-menu-item value="jarvis">Jarvis-Judice-Ninke</sp-menu-item>
+                                <sp-menu-item value="stucki">Stucki</sp-menu-item>
+                                <sp-menu-item value="burkes">Burkes</sp-menu-item>
                                 <sp-menu-item value="atkinson">Atkinson</sp-menu-item>
+                                <sp-menu-item value="sierra">Sierra</sp-menu-item>
+                                <sp-menu-item value="sierra-two-row">Sierra Two-Row</sp-menu-item>
+                                <sp-menu-item value="sierra-lite">Sierra Lite</sp-menu-item>
+
+                                <sp-divider size="small"></sp-divider>
+                                <sp-label className="dropdown-category">HALFTONE</sp-label>
+                                <sp-menu-item value="halftone-0">Halftone 0°</sp-menu-item>
+                                <sp-menu-item value="halftone-22">Halftone 22.5°</sp-menu-item>
+                                <sp-menu-item value="halftone-45">Halftone 45°</sp-menu-item>
 
                                 <sp-divider size="small"></sp-divider>
                                 <sp-label className="dropdown-category">PATTERN</sp-label>
-                                <sp-menu-item value="pattern-a">Pattern Dither A</sp-menu-item>
-                                <sp-menu-item value="pattern-b">Pattern Dither B</sp-menu-item>
+                                <sp-menu-item value="pattern-a">Pattern A</sp-menu-item>
+                                <sp-menu-item value="pattern-b">Pattern B</sp-menu-item>
 
                                 <sp-divider size="small"></sp-divider>
                                 <sp-label className="dropdown-category">OTHER</sp-label>
@@ -354,6 +370,16 @@ export const DitherEffect = () => {
                             max="200"
                             value={settings.intensity * 100}
                             onInput={(e) => updateSetting('intensity', parseInt(e.target.value) / 100)}
+                        ></sp-slider>
+                    </div>
+
+                    <div className="control-row slider-row">
+                        <sp-label size="S">Pixel Scale: {settings.pixelScale}x</sp-label>
+                        <sp-slider
+                            min="1"
+                            max="16"
+                            value={settings.pixelScale}
+                            onInput={(e) => updateSetting('pixelScale', parseInt(e.target.value))}
                         ></sp-slider>
                     </div>
                 </div>
