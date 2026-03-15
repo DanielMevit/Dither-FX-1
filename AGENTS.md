@@ -38,25 +38,33 @@ src/
   panels/
     DitherEffect.jsx        — Main UI panel. All state management, event handlers, live mode logic.
                               Settings persist to localStorage. usePickerRef() hook for sp-picker events.
-    DitherEffect.css        — Full panel styling with CSS variables, dark/light theme support.
+                              Cancel button + abort mechanism for long operations.
+    DitherEffect.css        — Compact panel styling with CSS variables, dark/light theme support.
+                              Inline section headers (.section-header-inline) for title+picker rows.
   core/
     effectProcessor.js      — Pipeline orchestrator. Manages processingState (cached original pixels,
                               dithered layer ID, document ID). Exposes initialApply(), updateEffect(),
-                              commitEffect(), resetEffect(), processPixels().
+                              commitEffect(), resetEffect(), processPixels(), batchApply().
     ditherAlgorithms.js     — 35 dither algorithms: generic error diffusion engine with kernel lookup,
                               ordered dithering with 13 matrices, halftone with angle rotation,
                               pixel scaling (downscale → dither → upscale), random noise.
-    preprocessing.js        — Image preprocessing: box blur, unsharp mask, brightness, contrast,
-                              gamma correction (LUT-based), noise, grayscale. Applied in fixed order.
+    preprocessing.js        — Image preprocessing: median denoise, box blur, unsharp mask, brightness,
+                              contrast, gamma correction (LUT-based), noise, grayscale.
     colorMapping.js         — Post-dither color mapping: mono, duotone, tritone, indexed palette (13 presets).
                               Color overlay blends original colors onto dithered luminance.
+    postProcessing.js       — CRT effect (scanlines, phosphor glow, bloom, vignette), chromatic aberration.
+    presetManager.js        — 7 built-in presets + user preset CRUD via localStorage.
+  utils/
+    vectorTracer.js         — Marching squares contour detection + Ramer-Douglas-Peucker simplification.
+                              Abort signal support, 200 contour cap, iterative RDP.
+    paletteExtractor.js     — Median-cut color quantization (2-32 colors from pixel data).
   ps/
     layerManager.js         — All Photoshop API interactions: getLayerPixels, putLayerPixels,
                               getFlattenedPixels, getSelectionPixels, setupDitherStructureInternal,
-                              revertToSnapshot, finalizeDither, validateLayer.
+                              revertToSnapshot, finalizeDither, validateLayer, createVectorPath.
 
 plugin/
-  manifest.json             — UXP manifest v5. Single panel "ditherEffect".
+  manifest.json             — UXP manifest v5, version 2.0.0. Single panel "ditherEffect".
   index.html                — Entry HTML. Sets global.screen={} shim and loads index.js.
   icons/                    — Plugin icons (dark/light themes, 1x/2x scale).
 

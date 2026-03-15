@@ -4,24 +4,28 @@ A real-time, non-destructive dithering plugin for Adobe Photoshop (24.0+). All p
 
 ## Features
 
-### v1.3 (current)
-- **27 dithering algorithms:** Error diffusion (Floyd-Steinberg, Atkinson, Jarvis, Stucki, Burkes, Sierra family, serpentine variants), ordered (Bayer 2x2/4x4/8x8), halftone (dot, cluster, crosshatch, angled 0°/22.5°/45°), artistic patterns (knit, circuit, star, cyber scanline, diamond), random noise
-- **Preprocessing pipeline:** Blur, Sharpen (with radius), Brightness, Contrast, Gamma correction, Noise, Grayscale
-- **Color mapping:** Mono (hard threshold), Duotone (smoothstep), Tritone (with adjustable thresholds), Palette/Indexed (13 retro presets including Game Boy, CGA, C64, NES, PICO-8)
+### v2.0 (current)
+- **35 dithering algorithms:** Error diffusion (Floyd-Steinberg, Atkinson, Jarvis, Stucki, Burkes, Sierra family, Stevenson-Arce, Fan, Shiau-Fan, serpentine variants), ordered (Bayer 2x2/4x4/8x8, blue noise, checkerboard, h-lines, diagonal), halftone (dot, cluster, crosshatch, angled 0°/22.5°/45°), artistic patterns (knit, circuit, star, cyber scanline, diamond), random noise
+- **Preprocessing pipeline:** Denoise (median filter), Blur, Sharpen (with radius), Brightness, Contrast, Gamma correction, Noise, Grayscale
+- **Color mapping:** Mono, Duotone, Tritone (adjustable thresholds), Palette/Indexed (13 retro presets + custom palette extraction from image)
+- **Post effects:** CRT simulation (scanlines, phosphor glow, bloom, vignette), Chromatic aberration
+- **Presets:** 7 built-in (CRT Scanline, Game Boy Classic, Newspaper Print, 1-Bit Atkinson, Retro Amber, Pixel Art 4x, VHS Glitch) + save/load user presets
+- **Batch render** — apply current settings to all processable layers
+- **Vector path output** — trace dithered result to Photoshop work path via marching squares
 - **Color overlay** — blend original image colors onto dithered luminance (0–100%)
-- **Pixel scale** (1–16x) — chunky pixel art downscale → dither → upscale
+- **Pixel scale** (1–32x) — chunky pixel art downscale → dither → upscale
 - **Error spread control** (0–200%) for error diffusion algorithms
-- **Halftone dot size** (2–20px)
-- **Invert output** toggle
-- **Transparency skip** — preserve pixels below alpha threshold
+- **Mask mode** — apply within selection only, with feather
+- **Invert output** toggle, **Transparency skip**
 - **Non-destructive workflow:** Duplicates source layer, hides original, history snapshot for one-click revert
 - **Live mode:** Slider changes auto-update with 200ms debounce
-- **Done button:** Finalize effect, unhide original, exit live mode
+- **Cancel button** — abort long-running operations (batch, vector trace)
+- **Compact UI** — inline section headers, tight spacing
 - **Settings persistence** via localStorage
 - **Target modes:** Active layer, flattened document, selection only
 
-### v2.0 (planned)
-See `ROADMAP.md` for competitive analysis and feature plan.
+### v2.1 (planned)
+See `ROADMAP.md` for competitive analysis and remaining feature gaps.
 
 ## Tech
 
@@ -60,11 +64,16 @@ Dither FX 1/
       DitherEffect.css        ← panel styling, dark/light themes
     core/
       effectProcessor.js      ← pipeline orchestrator, pixel cache
-      ditherAlgorithms.js     ← 27 dither algorithms
-      preprocessing.js        ← blur, sharpen, brightness, contrast, gamma, noise, grayscale
+      ditherAlgorithms.js     ← 35 dither algorithms
+      preprocessing.js        ← denoise, blur, sharpen, brightness, contrast, gamma, noise, grayscale
       colorMapping.js         ← mono, duotone, tritone, indexed palette, color overlay
+      postProcessing.js       ← CRT effect, chromatic aberration
+      presetManager.js        ← built-in + user preset management
+    utils/
+      vectorTracer.js         ← marching squares contour detection + path simplification
+      paletteExtractor.js     ← median-cut color quantization from image
     ps/
-      layerManager.js         ← all Photoshop API interactions
+      layerManager.js         ← all Photoshop API interactions, vector path creation
   plugin/
     manifest.json             ← UXP manifest v5
     index.html                ← entry HTML

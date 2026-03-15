@@ -6,6 +6,32 @@ Date format for this file: `YYYY-MM-DD HH:mm TZ`.
 
 ---
 
+## [2.0.1] - 2026-03-16 01:00 CET — Bug Fixes + Compact UI
+
+**By:** Claude Opus 4.6
+
+### Bug Fixes
+- Fix CRT/chromatic aberration UXP buffer copy (`input.slice(0)` instead of `new Uint8Array`)
+- Fix vector path batchPlay descriptor format (`pathContents`/`pathClassContents` structure)
+- Fix "invalid target sheet" in live mode — validate dithered layer exists before writing
+- Add "None" option to preset picker for deselection
+
+### Vector Path Improvements
+- Rewrite vectorTracer for performance: `Uint8Array` visited map, iterative RDP simplification
+- Cap at 200 contours, 50k steps per contour to prevent freezing
+- Add abort signal support for cancellation mid-trace
+
+### UI
+- Compact layout: all spacing reduced, inline section headers with pickers
+- Cancel button appears during processing for long-running operations
+- Shorter labels throughout (Scanlines, Phosphor, Chroma Shift, etc.)
+
+### Docs
+- Update README.md to reflect v2.0 features and file structure
+- Update AGENTS.md architecture section
+
+---
+
 ## [2.0.0] - 2026-03-15 22:30 CET — Full Feature Expansion (Opus)
 
 **By:** Claude Opus 4.6 (all tiers implementation)
