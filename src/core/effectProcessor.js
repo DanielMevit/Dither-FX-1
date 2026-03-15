@@ -13,7 +13,8 @@ import {
     putLayerPixels,
     setupDitherStructureInternal,
     validateLayer,
-    revertToSnapshot
+    revertToSnapshot,
+    finalizeDither
 } from '../ps/layerManager.js';
 
 // Store processing state for real-time updates
@@ -21,6 +22,8 @@ let processingState = {
     isInitialized: false,
     originalPixels: null,
     ditheredLayerId: null,
+    originalLayerId: null,
+    originalLayerName: null,
     documentId: null,
     imageInfo: null,
     lastSettings: null
@@ -34,6 +37,8 @@ export function resetProcessingState() {
         isInitialized: false,
         originalPixels: null,
         ditheredLayerId: null,
+        originalLayerId: null,
+        originalLayerName: null,
         documentId: null,
         imageInfo: null,
         lastSettings: null
@@ -66,7 +71,7 @@ export function getDefaultSettings() {
         
         // Dithering
         algorithm: 'floyd-steinberg',
-        colorDepth: 2,
+        colorDepth: 1,
         intensity: 1.0,
         
         // Color mapping
@@ -84,7 +89,13 @@ export function getDefaultSettings() {
  */
 export function processPixels(pixels, width, height, components, settings) {
     const startTime = Date.now();
-    
+
+    console.log("[Dither] processPixels called:", width, "x", height, "components:", components, "total bytes:", pixels.length);
+    console.log("[Dither] settings:", JSON.stringify({ algorithm: settings.algorithm, colorDepth: settings.colorDepth, intensity: settings.intensity }));
+
+    // Sample first pixel before processing
+    console.log("[Dither] Input pixel[0]:", pixels[0], pixels[1], pixels[2], components === 4 ? pixels[3] : "");
+
     // Step 1: Preprocessing
     let processed = applyPreprocessing(pixels, width, height, components, {
         blur: settings.blur,
@@ -95,14 +106,25 @@ export function processPixels(pixels, width, height, components, settings) {
         noise: settings.noise,
         grayscale: settings.grayscale
     });
-    
+
     // Step 2: Dithering
     processed = applyDitherAlgorithm(processed, width, height, components, {
         algorithm: settings.algorithm,
         colorDepth: settings.colorDepth,
         intensity: settings.intensity
     });
-    
+
+    // Sample first pixel after dithering
+    console.log("[Dither] Output pixel[0]:", processed[0], processed[1], processed[2], components === 4 ? processed[3] : "");
+
+    // Count how many pixels changed
+    let changedCount = 0;
+    const sampleSize = Math.min(pixels.length, 10000);
+    for (let i = 0; i < sampleSize; i++) {
+        if (processed[i] !== pixels[i]) changedCount++;
+    }
+    console.log("[Dither] Changed bytes in first", sampleSize, ":", changedCount, "(", Math.round(changedCount/sampleSize*100), "%)");
+
     // Step 3: Color mapping
     if (settings.colorMode && settings.colorMode !== 'none') {
         processed = applyColorMapping(processed, width, height, components, {
@@ -114,8 +136,8 @@ export function processPixels(pixels, width, height, components, settings) {
             highlightThreshold: settings.highlightThreshold
         });
     }
-    
-    console.log("Processing time:", Date.now() - startTime, "ms");
+
+    console.log("[Dither] Processing time:", Date.now() - startTime, "ms");
     return processed;
 }
 
@@ -146,6 +168,7 @@ export async function initialApply(layer, settings, onProgress) {
         
         // Read pixels based on target setting
         onProgress?.("Reading pixels...");
+        console.log("[Dither] Reading pixels, target:", settings.target, "layer:", layer.name, "id:", layer.id);
         let pixelData;
         switch (settings.target) {
             case 'flattened':
@@ -159,14 +182,18 @@ export async function initialApply(layer, settings, onProgress) {
                 pixelData = await getLayerPixels(layer);
                 break;
         }
+        console.log("[Dither] Got pixels:", pixelData.width, "x", pixelData.height, "components:", pixelData.components, "bytes:", pixelData.pixels.length);
 
         // Setup structure (creates dithered layer, hides original)
         onProgress?.("Creating layers...");
         const structure = await setupDitherStructureInternal(action, app, layer);
+        console.log("[Dither] Dithered layer created, id:", structure.ditheredLayer.id, "name:", structure.ditheredLayer.name);
 
         // Store references
         processingState.documentId = doc.id;
         processingState.ditheredLayerId = structure.ditheredLayer.id;
+        processingState.originalLayerId = structure.originalLayerId;
+        processingState.originalLayerName = layer.name;
         
         // Store original pixels for future updates
         processingState.originalPixels = new Uint8Array(pixelData.pixels);
@@ -258,6 +285,22 @@ export async function updateEffect(settings, onProgress) {
     }, { commandName: "Update Dither" });
     
     return true;
+}
+
+/**
+ * Commit effect - finalize and clean up (Done button)
+ * Deletes hidden original layer, renames dithered layer, frees memory
+ */
+export async function commitEffect() {
+    if (!processingState.isInitialized) {
+        throw new Error("No effect to commit");
+    }
+
+    await finalizeDither(
+        processingState.ditheredLayerId,
+        processingState.originalLayerId
+    );
+    resetProcessingState();
 }
 
 /**

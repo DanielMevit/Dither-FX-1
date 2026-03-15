@@ -41,19 +41,25 @@ export function validateLayer(layer) {
         return { valid: false, error: "Layer pixels are locked. Please unlock first." };
     }
     
-    const bounds = layer.bounds;
-    if (!bounds) {
+    const rawBounds = layer.bounds;
+    if (!rawBounds) {
         return { valid: false, error: "Cannot read layer bounds" };
     }
-    
-    const width = Math.round(bounds.right - bounds.left);
-    const height = Math.round(bounds.bottom - bounds.top);
-    
+
+    // Normalize UXP Bounds — properties may be _left or left depending on version
+    const left = rawBounds.left ?? rawBounds._left ?? 0;
+    const top = rawBounds.top ?? rawBounds._top ?? 0;
+    const right = rawBounds.right ?? rawBounds._right ?? 0;
+    const bottom = rawBounds.bottom ?? rawBounds._bottom ?? 0;
+
+    const width = Math.round(right - left);
+    const height = Math.round(bottom - top);
+
     if (width <= 0 || height <= 0) {
         return { valid: false, error: "Layer appears to be empty" };
     }
-    
-    return { valid: true, width, height, bounds };
+
+    return { valid: true, width, height, bounds: { left, top, right, bottom } };
 }
 
 /**
@@ -171,25 +177,28 @@ export async function getLayerPixels(layer) {
     }
     
     const { bounds } = validation;
-    
+
+    // Normalize UXP Bounds — may use _left/_top or left/top
+    const normBounds = {
+        left: bounds.left ?? bounds._left ?? 0,
+        top: bounds.top ?? bounds._top ?? 0,
+        right: bounds.right ?? bounds._right ?? 0,
+        bottom: bounds.bottom ?? bounds._bottom ?? 0
+    };
+
     const getResult = await imaging.getPixels({
         layerID: layer.id,
-        sourceBounds: {
-            left: bounds.left,
-            top: bounds.top,
-            right: bounds.right,
-            bottom: bounds.bottom
-        },
+        sourceBounds: normBounds,
         colorSpace: "RGB"
     });
-    
+
     if (!getResult?.imageData) {
         throw new Error("Failed to get pixels from layer");
     }
-    
+
     const imageData = getResult.imageData;
     const pixelBuffer = await imageData.getData({ chunky: true });
-    
+
     return {
         pixels: pixelBuffer,
         width: imageData.width,
@@ -197,7 +206,7 @@ export async function getLayerPixels(layer) {
         components: imageData.components,
         colorSpace: imageData.colorSpace || "RGB",
         colorProfile: imageData.colorProfile,
-        bounds: bounds,
+        bounds: normBounds,
         imageData: imageData
     };
 }
@@ -207,31 +216,46 @@ export async function getLayerPixels(layer) {
  */
 export async function putLayerPixels(documentID, layerID, pixelData, imageInfo) {
     const { imaging } = getPhotoshopAPI();
-    
-    const newImageData = await imaging.createImageDataFromBuffer(
-        pixelData,
-        {
-            width: imageInfo.width,
-            height: imageInfo.height,
-            components: imageInfo.components,
-            colorSpace: imageInfo.colorSpace,
-            colorProfile: imageInfo.colorProfile,
-            chunky: true
-        }
-    );
-    
-    await imaging.putPixels({
-        documentID: documentID,
-        layerID: layerID,
-        imageData: newImageData,
-        targetBounds: { left: imageInfo.bounds.left, top: imageInfo.bounds.top },
-        replace: true
-    });
-    
-    // Cleanup
+
+    // Extract bounds safely — UXP Bounds objects use _left/_top or left/top
+    const boundsLeft = imageInfo.bounds.left ?? imageInfo.bounds._left ?? 0;
+    const boundsTop = imageInfo.bounds.top ?? imageInfo.bounds._top ?? 0;
+
+    console.log("[Dither] putLayerPixels: docID:", documentID, "layerID:", layerID,
+        "size:", imageInfo.width, "x", imageInfo.height,
+        "components:", imageInfo.components, "bytes:", pixelData.length,
+        "targetBounds: left:", boundsLeft, "top:", boundsTop);
+
     try {
-        if (newImageData.dispose) newImageData.dispose();
-    } catch (e) { /* ignore */ }
+        const newImageData = await imaging.createImageDataFromBuffer(
+            pixelData,
+            {
+                width: imageInfo.width,
+                height: imageInfo.height,
+                components: imageInfo.components,
+                colorSpace: imageInfo.colorSpace,
+                chunky: true
+            }
+        );
+        console.log("[Dither] createImageDataFromBuffer succeeded, imageData:", newImageData ? "OK" : "NULL");
+
+        await imaging.putPixels({
+            documentID: documentID,
+            layerID: layerID,
+            imageData: newImageData,
+            targetBounds: { left: boundsLeft, top: boundsTop },
+            replace: true
+        });
+        console.log("[Dither] putPixels completed successfully");
+
+        // Cleanup
+        try {
+            if (newImageData.dispose) newImageData.dispose();
+        } catch (e) { /* ignore */ }
+    } catch (error) {
+        console.error("[Dither] putLayerPixels FAILED:", error.message, error);
+        throw error;
+    }
 }
 
 /**
@@ -329,6 +353,45 @@ export async function revertToSnapshot(snapshotName = "Before Dither") {
         return true;
     } catch (error) {
         console.error("Could not revert:", error.message);
+        return false;
+    }
+}
+
+/**
+ * Finalize dither - unhide original layer, keep dithered layer on top
+ * Standalone function with own modal
+ */
+export async function finalizeDither(ditheredLayerId, originalLayerId) {
+    const { core, action, app } = getPhotoshopAPI();
+
+    try {
+        await core.executeAsModal(async () => {
+            const doc = app.activeDocument;
+            if (!doc) return;
+
+            // Unhide the original layer
+            try {
+                await action.batchPlay([
+                    { _obj: "select", _target: [{ _ref: "layer", _id: originalLayerId }] },
+                    { _obj: "show", null: [{ _ref: "layer", _enum: "ordinal", _value: "targetEnum" }] }
+                ], {});
+            } catch (e) {
+                console.warn("Could not unhide original layer:", e.message);
+            }
+
+            // Select the dithered layer
+            try {
+                await action.batchPlay([
+                    { _obj: "select", _target: [{ _ref: "layer", _id: ditheredLayerId }] }
+                ], {});
+            } catch (e) {
+                console.warn("Could not select dithered layer:", e.message);
+            }
+        }, { commandName: "Finalize Dither" });
+
+        return true;
+    } catch (error) {
+        console.error("Could not finalize:", error.message);
         return false;
     }
 }

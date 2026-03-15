@@ -4,10 +4,34 @@ import {
     initialApply,
     updateEffect,
     resetEffect,
+    commitEffect,
     isEffectInitialized,
     getDefaultSettings,
     resetProcessingState
 } from "../core/effectProcessor.js";
+
+/**
+ * Hook to wire up sp-picker change events via direct DOM addEventListener.
+ * React's synthetic onChange/onInput do NOT fire for UXP sp-picker web components.
+ */
+function usePickerRef(callback) {
+    const ref = useRef(null);
+    const callbackRef = useRef(callback);
+    callbackRef.current = callback;
+
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const handler = (e) => {
+            console.log("[Dither] Picker change:", e.target.value);
+            callbackRef.current(e.target.value);
+        };
+        el.addEventListener('change', handler);
+        return () => el.removeEventListener('change', handler);
+    }, []);
+
+    return ref;
+}
 
 export const DitherEffect = () => {
     // State
@@ -15,23 +39,28 @@ export const DitherEffect = () => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [status, setStatus] = useState({ type: 'ready', message: 'Ready' });
     const [isLiveMode, setIsLiveMode] = useState(false);
-    
+
     // Refs to avoid stale closures
     const settingsRef = useRef(settings);
     const isProcessingRef = useRef(false);
     const isLiveModeRef = useRef(false);
     const debounceTimerRef = useRef(null);
     const initialApplyDoneRef = useRef(false);
-    
+
     // Keep refs in sync
     settingsRef.current = settings;
     isLiveModeRef.current = isLiveMode;
-    
+
     // Update setting helper
     const updateSetting = useCallback((key, value) => {
         setSettings(prev => ({ ...prev, [key]: value }));
     }, []);
-    
+
+    // Picker refs — direct DOM event listeners for sp-picker
+    const targetPickerRef = usePickerRef((value) => updateSetting('target', value));
+    const algorithmPickerRef = usePickerRef((value) => updateSetting('algorithm', value));
+    const colorModePickerRef = usePickerRef((value) => updateSetting('colorMode', value));
+
     // Live update handler - uses refs to avoid dependency issues
     const handleLiveUpdate = useCallback(async () => {
         // Guard against concurrent execution using ref
@@ -39,26 +68,26 @@ export const DitherEffect = () => {
             console.log("Already processing, skipping live update");
             return;
         }
-        
+
         if (!isEffectInitialized()) {
             console.log("Not initialized, skipping live update");
             return;
         }
-        
+
         if (!isLiveModeRef.current) {
             console.log("Not in live mode, skipping");
             return;
         }
-        
+
         try {
             isProcessingRef.current = true;
             setIsProcessing(true);
             setStatus({ type: 'processing', message: 'Live updating...' });
-            
+
             await updateEffect(settingsRef.current, (msg) => {
                 setStatus({ type: 'processing', message: msg });
             });
-            
+
             setStatus({ type: 'success', message: 'Updated' });
             setTimeout(() => {
                 if (isLiveModeRef.current) {
@@ -77,18 +106,18 @@ export const DitherEffect = () => {
             setIsProcessing(false);
         }
     }, []); // No dependencies - uses refs
-    
+
     // Debounced live update
     const triggerLiveUpdate = useCallback(() => {
         if (debounceTimerRef.current) {
             clearTimeout(debounceTimerRef.current);
         }
-        
+
         debounceTimerRef.current = setTimeout(() => {
             handleLiveUpdate();
         }, 200); // 200ms debounce
     }, [handleLiveUpdate]);
-    
+
     // Cleanup debounce timer on unmount
     useEffect(() => {
         return () => {
@@ -97,7 +126,7 @@ export const DitherEffect = () => {
             }
         };
     }, []);
-    
+
     // Effect to trigger live updates when settings change
     useEffect(() => {
         // Only trigger if we've already done the initial apply
@@ -105,43 +134,45 @@ export const DitherEffect = () => {
             triggerLiveUpdate();
         }
     }, [settings, isLiveMode, triggerLiveUpdate]);
-    
+
     // Apply button handler
     const handleApply = async () => {
         if (isProcessingRef.current) {
             console.log("Already processing, ignoring apply");
             return;
         }
-        
+
         try {
             isProcessingRef.current = true;
             setIsProcessing(true);
             setStatus({ type: 'processing', message: 'Applying dither effect...' });
-            
+
             const photoshop = require("photoshop");
             const { app } = photoshop;
-            
+
             if (!app.activeDocument) {
                 throw new Error("No active document. Please open an image first.");
             }
-            
+
             const doc = app.activeDocument;
             const activeLayer = doc.activeLayers?.[0] || doc.activeLayer;
-            
+
             if (!activeLayer) {
                 throw new Error("No layer selected. Please select a layer.");
             }
-            
+
+            console.log("[Dither] Applying with settings:", JSON.stringify(settings));
+
             await initialApply(activeLayer, settings, (msg) => {
                 setStatus({ type: 'processing', message: msg });
             });
-            
+
             // Mark initial apply as done BEFORE setting live mode
             initialApplyDoneRef.current = true;
             isLiveModeRef.current = true;
             setIsLiveMode(true);
             setStatus({ type: 'success', message: 'Effect applied! Live mode active.' });
-            
+
         } catch (error) {
             console.error("Apply error:", error);
             setStatus({ type: 'error', message: error.message });
@@ -153,31 +184,65 @@ export const DitherEffect = () => {
             setIsProcessing(false);
         }
     };
-    
-    // Reset button handler
-    const handleReset = async () => {
+
+    // Done button handler - finalize and clean up
+    const handleDone = async () => {
         if (isProcessingRef.current) return;
-        
+
         try {
             isProcessingRef.current = true;
             setIsProcessing(true);
-            setStatus({ type: 'processing', message: 'Reverting...' });
-            
+            setStatus({ type: 'processing', message: 'Finalizing...' });
+
             // Clear debounce timer
             if (debounceTimerRef.current) {
                 clearTimeout(debounceTimerRef.current);
                 debounceTimerRef.current = null;
             }
-            
+
+            await commitEffect();
+
+            // Reset UI state
+            isLiveModeRef.current = false;
+            initialApplyDoneRef.current = false;
+            setIsLiveMode(false);
+            setSettings(getDefaultSettings());
+            setStatus({ type: 'success', message: 'Effect committed' });
+
+            setTimeout(() => setStatus({ type: 'ready', message: 'Ready' }), 2000);
+        } catch (error) {
+            console.error("Done error:", error);
+            setStatus({ type: 'error', message: error.message });
+        } finally {
+            isProcessingRef.current = false;
+            setIsProcessing(false);
+        }
+    };
+
+    // Reset button handler
+    const handleReset = async () => {
+        if (isProcessingRef.current) return;
+
+        try {
+            isProcessingRef.current = true;
+            setIsProcessing(true);
+            setStatus({ type: 'processing', message: 'Reverting...' });
+
+            // Clear debounce timer
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+                debounceTimerRef.current = null;
+            }
+
             await resetEffect();
-            
+
             // Reset all state
             isLiveModeRef.current = false;
             initialApplyDoneRef.current = false;
             setIsLiveMode(false);
             setSettings(getDefaultSettings());
             setStatus({ type: 'success', message: 'Reset to original' });
-            
+
             setTimeout(() => setStatus({ type: 'ready', message: 'Ready' }), 2000);
         } catch (error) {
             console.error("Reset error:", error);
@@ -187,7 +252,7 @@ export const DitherEffect = () => {
             setIsProcessing(false);
         }
     };
-    
+
     // Get status class
     const getStatusClass = () => {
         switch (status.type) {
@@ -197,7 +262,7 @@ export const DitherEffect = () => {
             default: return 'status-ready';
         }
     };
-    
+
     return (
         <div className="dither-panel">
             {/* Header */}
@@ -205,12 +270,12 @@ export const DitherEffect = () => {
                 <sp-heading size="S">Dither Effect</sp-heading>
                 {isLiveMode && <span className="live-badge">LIVE</span>}
             </div>
-            
+
             {/* Status Bar */}
             <div className={`status-bar ${getStatusClass()}`}>
                 <sp-body size="XS">{status.message}</sp-body>
             </div>
-            
+
             <div className="panel-content">
                 {/* Target Selection */}
                 <div className="section">
@@ -219,9 +284,9 @@ export const DitherEffect = () => {
                     </div>
                     <div className="control-row">
                         <sp-picker
+                            ref={targetPickerRef}
                             size="s"
                             value={settings.target}
-                            onInput={(e) => updateSetting('target', e.target.value)}
                         >
                             <sp-menu slot="options">
                                 <sp-menu-item value="active-layer">Active Layer</sp-menu-item>
@@ -231,47 +296,47 @@ export const DitherEffect = () => {
                         </sp-picker>
                     </div>
                 </div>
-                
+
                 {/* Dither Settings */}
                 <div className="section">
                     <div className="section-header">
                         <sp-body size="S" className="section-title">Dither Algorithm</sp-body>
                     </div>
-                    
+
                     <div className="control-row">
                         <sp-label size="S">Algorithm</sp-label>
                         <sp-picker
+                            ref={algorithmPickerRef}
                             size="s"
                             value={settings.algorithm}
-                            onInput={(e) => updateSetting('algorithm', e.target.value)}
                         >
                             <sp-menu slot="options">
                                 <sp-label className="dropdown-category">BASIC</sp-label>
                                 <sp-menu-item value="none">None (Quantize Only)</sp-menu-item>
-                                
+
                                 <sp-divider size="small"></sp-divider>
                                 <sp-label className="dropdown-category">ORDERED (BAYER)</sp-label>
                                 <sp-menu-item value="bayer-2x2">Bayer 2x2</sp-menu-item>
                                 <sp-menu-item value="bayer-4x4">Bayer 4x4</sp-menu-item>
                                 <sp-menu-item value="bayer-8x8">Bayer 8x8</sp-menu-item>
-                                
+
                                 <sp-divider size="small"></sp-divider>
                                 <sp-label className="dropdown-category">ERROR DIFFUSION</sp-label>
                                 <sp-menu-item value="floyd-steinberg">Floyd-Steinberg</sp-menu-item>
                                 <sp-menu-item value="atkinson">Atkinson</sp-menu-item>
-                                
+
                                 <sp-divider size="small"></sp-divider>
                                 <sp-label className="dropdown-category">PATTERN</sp-label>
                                 <sp-menu-item value="pattern-a">Pattern Dither A</sp-menu-item>
                                 <sp-menu-item value="pattern-b">Pattern Dither B</sp-menu-item>
-                                
+
                                 <sp-divider size="small"></sp-divider>
                                 <sp-label className="dropdown-category">OTHER</sp-label>
                                 <sp-menu-item value="random">Random Noise</sp-menu-item>
                             </sp-menu>
                         </sp-picker>
                     </div>
-                    
+
                     <div className="control-row slider-row">
                         <sp-label size="S">Color Depth: {settings.colorDepth} bit ({Math.pow(2, settings.colorDepth)} levels)</sp-label>
                         <sp-slider
@@ -281,7 +346,7 @@ export const DitherEffect = () => {
                             onInput={(e) => updateSetting('colorDepth', parseInt(e.target.value))}
                         ></sp-slider>
                     </div>
-                    
+
                     <div className="control-row slider-row">
                         <sp-label size="S">Intensity: {Math.round(settings.intensity * 100)}%</sp-label>
                         <sp-slider
@@ -292,13 +357,13 @@ export const DitherEffect = () => {
                         ></sp-slider>
                     </div>
                 </div>
-                
+
                 {/* Pre-processing */}
                 <div className="section">
                     <div className="section-header">
                         <sp-body size="S" className="section-title">Pre-processing</sp-body>
                     </div>
-                    
+
                     <div className="control-row slider-row">
                         <sp-label size="S">Blur: {settings.blur}</sp-label>
                         <sp-slider
@@ -308,7 +373,7 @@ export const DitherEffect = () => {
                             onInput={(e) => updateSetting('blur', parseInt(e.target.value))}
                         ></sp-slider>
                     </div>
-                    
+
                     <div className="control-row slider-row">
                         <sp-label size="S">Sharpen: {settings.sharpenStrength}%</sp-label>
                         <sp-slider
@@ -330,7 +395,7 @@ export const DitherEffect = () => {
                             ></sp-slider>
                         </div>
                     )}
-                    
+
                     <div className="control-row slider-row">
                         <sp-label size="S">Brightness: {settings.brightness}</sp-label>
                         <sp-slider
@@ -340,7 +405,7 @@ export const DitherEffect = () => {
                             onInput={(e) => updateSetting('brightness', parseInt(e.target.value))}
                         ></sp-slider>
                     </div>
-                    
+
                     <div className="control-row slider-row">
                         <sp-label size="S">Contrast: {settings.contrast}</sp-label>
                         <sp-slider
@@ -350,7 +415,7 @@ export const DitherEffect = () => {
                             onInput={(e) => updateSetting('contrast', parseInt(e.target.value))}
                         ></sp-slider>
                     </div>
-                    
+
                     <div className="control-row slider-row">
                         <sp-label size="S">Noise: {settings.noise}</sp-label>
                         <sp-slider
@@ -360,7 +425,7 @@ export const DitherEffect = () => {
                             onInput={(e) => updateSetting('noise', parseInt(e.target.value))}
                         ></sp-slider>
                     </div>
-                    
+
                     <div className="control-row checkbox-row">
                         <sp-checkbox
                             checked={settings.grayscale ? true : undefined}
@@ -370,19 +435,19 @@ export const DitherEffect = () => {
                         </sp-checkbox>
                     </div>
                 </div>
-                
+
                 {/* Color Mapping */}
                 <div className="section">
                     <div className="section-header">
                         <sp-body size="S" className="section-title">Color Mapping</sp-body>
                     </div>
-                    
+
                     <div className="control-row">
                         <sp-label size="S">Mode</sp-label>
                         <sp-picker
+                            ref={colorModePickerRef}
                             size="s"
                             value={settings.colorMode}
-                            onInput={(e) => updateSetting('colorMode', e.target.value)}
                         >
                             <sp-menu slot="options">
                                 <sp-menu-item value="none">None (Original)</sp-menu-item>
@@ -392,7 +457,7 @@ export const DitherEffect = () => {
                             </sp-menu>
                         </sp-picker>
                     </div>
-                    
+
                     {settings.colorMode !== 'none' && (
                         <>
                             <div className="control-row color-row">
@@ -411,7 +476,7 @@ export const DitherEffect = () => {
                                     ></sp-textfield>
                                 </div>
                             </div>
-                            
+
                             {settings.colorMode === 'tritone' && (
                                 <div className="control-row color-row">
                                     <sp-label size="S">Midtone Color</sp-label>
@@ -430,7 +495,7 @@ export const DitherEffect = () => {
                                     </div>
                                 </div>
                             )}
-                            
+
                             <div className="control-row color-row">
                                 <sp-label size="S">Highlight Color</sp-label>
                                 <div className="color-input-wrapper">
@@ -474,7 +539,7 @@ export const DitherEffect = () => {
                     )}
                 </div>
             </div>
-            
+
             {/* Action Buttons */}
             <div className="panel-footer">
                 <div className="button-row">
@@ -483,8 +548,17 @@ export const DitherEffect = () => {
                         onClick={handleApply}
                         disabled={isProcessing ? true : undefined}
                     >
-                        {isProcessing ? "Processing..." : (isLiveMode ? "Re-Apply" : "Apply Dither")}
+                        {isProcessing ? "Processing..." : "Apply Dither"}
                     </sp-button>
+                    {isLiveMode && (
+                        <sp-button
+                            variant="cta"
+                            onClick={handleDone}
+                            disabled={isProcessing ? true : undefined}
+                        >
+                            Done
+                        </sp-button>
+                    )}
                     <sp-button
                         variant="secondary"
                         onClick={handleReset}
@@ -493,7 +567,7 @@ export const DitherEffect = () => {
                         Reset
                     </sp-button>
                 </div>
-                
+
                 {isLiveMode && (
                     <sp-body size="XS" className="live-hint">
                         Changes will update automatically

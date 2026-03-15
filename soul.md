@@ -15,7 +15,7 @@ A Photoshop UXP plugin that applies real-time dithering effects to image layers.
 2. **Never modify the original source layer's pixels.** The pipeline reads from the original (which gets hidden), caches those pixels in `processingState.originalPixels`, and writes only to the duplicated "(Dithered)" layer.
 3. **All pixel processing is pure JavaScript on `Uint8Array` / `Float32Array` buffers.** Do not use Photoshop's built-in filters, adjustments, or actions for image processing. The entire point is real-time, slider-driven control.
 4. **`require("photoshop")` and `require("uxp")` are the correct import styles.** UXP does not support ES6 `import` for host APIs. The webpack externals config maps these to `commonjs2`. Do not refactor to ES6 imports.
-5. **Spectrum UXP components (`sp-*`) have different event semantics than HTML.** Use `onInput` (not `onChange`) for `sp-slider`, `sp-picker`, `sp-textfield`. For `sp-checkbox`, use `checked={val ? true : undefined}` — setting `checked={false}` still results in a checked state in UXP because it treats any attribute presence as truthy.
+5. **Spectrum UXP components (`sp-*`) have different event semantics than HTML.** Use `onInput` for `sp-slider` and `sp-textfield`. For `sp-picker` (dropdown), React's synthetic `onChange`/`onInput` do NOT work — you MUST use a `ref` + direct `addEventListener('change', handler)` on the DOM element. For `sp-checkbox`, use `checked={val ? true : undefined}` — setting `checked={false}` still results in a checked state in UXP because it treats any attribute presence as truthy.
 6. **Color inputs use native `<input type="color">` with `onChange`** — this is correct because these are standard HTML elements, not Spectrum components. Don't change these to `onInput`.
 
 ## Architecture
@@ -85,6 +85,14 @@ On subsequent slider changes (live mode), steps 3-6 re-run from the cached origi
 - No presets/save/load for settings
 - No `executionContext.isCancelled` check during long processing (large images could freeze PS)
 - `rgbToHex()` exported from colorMapping.js but never called (may be useful for future preset export)
+- Debug console logging still present (remove before production release)
+
+### Fixed in v1.2.0
+- `putPixels` silent failure — colorProfile from `getPixels` rejected by `createImageDataFromBuffer` (error -26120)
+- UXP Bounds underscore properties (`_left` vs `left`) — normalized across all bounds access
+- `sp-picker` events broken in React — replaced with `usePickerRef` hook using direct `addEventListener`
+- Added "Done" button — unhides original, keeps dithered layer on top, exits live mode
+- Default colorDepth changed to 1 (2 levels) for dramatic dithering
 
 ### Fixed in v1.1.1
 - Target picker fully wired — `initialApply()` dispatches on `settings.target` (active-layer, flattened, selection)

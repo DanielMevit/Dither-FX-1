@@ -230,3 +230,57 @@ Removed unused exports:
 - No `executionContext.isCancelled` check for large image processing
 - No presets/save/load for settings
 - Research findings from dither tools (Dithermark, Ditter Studio, etc.) not yet incorporated
+
+---
+
+## 2026-03-15 17:15 CET — Critical Bug Fixes & Done Button (Opus)
+
+**By:** Claude Opus 4.6 (debugging + feature session)
+
+### Critical Bugs Fixed
+
+1. **`putPixels` failing silently — colorProfile rejection** (`layerManager.js`)
+   - `imaging.createImageDataFromBuffer()` was passed `colorProfile` from the read result
+   - Photoshop rejected it with error code -26120 "Unknown color profile"
+   - Fix: removed `colorProfile` from `createImageDataFromBuffer` options — lets PS use the document's default
+   - **This was the root cause of the entire "effect does nothing" issue since v1.0**
+
+2. **UXP Bounds underscore properties** (`layerManager.js`)
+   - `layer.bounds` returns objects with `_left`, `_top`, `_right`, `_bottom` (underscore-prefixed)
+   - Code was accessing `bounds.left`, `bounds.top` which returned `undefined`
+   - Fix: normalize all bounds extraction with `bounds.left ?? bounds._left ?? 0` fallback pattern
+   - Applied to `validateLayer()`, `getLayerPixels()`, and `putLayerPixels()`
+
+3. **`sp-picker` dropdown events not firing** (`DitherEffect.jsx`)
+   - React's synthetic `onInput` and `onChange` do NOT work for UXP `sp-picker` web components
+   - Algorithm, target, and color mode dropdowns were all silently broken — always used default values
+   - Fix: created `usePickerRef()` hook that attaches `addEventListener('change', ...)` directly on the DOM element, bypassing React's event system
+   - All three pickers (target, algorithm, colorMode) now use ref-based listeners
+
+### Features Added
+
+4. **"Done" button** (`DitherEffect.jsx`, `effectProcessor.js`, `layerManager.js`)
+   - Appears after Apply (when live mode is active)
+   - Unhides the original layer, keeps dithered layer on top (selected)
+   - Exits live mode and frees cached pixel memory
+   - Non-destructive: original layer preserved underneath
+
+5. **Button text simplified** — removed "Re-Apply" logic, always shows "Apply Dither"
+
+6. **Default colorDepth changed to 1** (2 levels) for more dramatic/visible dithering effect
+
+### Documentation Updated
+
+- `soul.md` rule 5 corrected: `sp-picker` requires `ref` + `addEventListener('change')`, not `onInput`/`onChange`
+- Added notes about `colorProfile` and bounds normalization
+
+### Build
+- Webpack compiles successfully with 0 errors
+- Version bumped to 1.2.0
+
+### Remaining TODO
+- `rgbToHex()` still exported but unused
+- No `executionContext.isCancelled` check for large image processing
+- No presets/save/load for settings
+- Research findings from dither tools not yet incorporated
+- Debug logging still present (remove before production)
