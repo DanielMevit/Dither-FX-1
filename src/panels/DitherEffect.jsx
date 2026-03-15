@@ -417,6 +417,37 @@ export const DitherEffect = () => {
                             onInput={(e) => updateSetting('pixelScale', parseInt(e.target.value))}
                         ></sp-slider>
                     </div>
+
+                    {(settings.algorithm === 'halftone-0' || settings.algorithm === 'halftone-22' || settings.algorithm === 'halftone-45') && (
+                        <div className="control-row slider-row">
+                            <sp-label size="S">Dot Size: {settings.halftoneSize || 6}px</sp-label>
+                            <sp-slider
+                                min="2"
+                                max="20"
+                                value={settings.halftoneSize || 6}
+                                onInput={(e) => updateSetting('halftoneSize', parseInt(e.target.value))}
+                            ></sp-slider>
+                        </div>
+                    )}
+
+                    <div className="control-row checkbox-row">
+                        <sp-checkbox
+                            checked={settings.invert ? true : undefined}
+                            onInput={(e) => updateSetting('invert', e.target.checked)}
+                        >
+                            Invert Output
+                        </sp-checkbox>
+                    </div>
+
+                    <div className="control-row slider-row">
+                        <sp-label size="S">Transparency Skip: {settings.transparencyThreshold || 0}</sp-label>
+                        <sp-slider
+                            min="0"
+                            max="255"
+                            value={settings.transparencyThreshold || 0}
+                            onInput={(e) => updateSetting('transparencyThreshold', parseInt(e.target.value))}
+                        ></sp-slider>
+                    </div>
                 </div>
 
                 {/* Pre-processing */}

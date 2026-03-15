@@ -365,9 +365,50 @@ Analyzed two commercial plugins installed on user's system:
 - Webpack compiles successfully with 0 errors
 
 ### Remaining TODO
-- Custom palette / indexed color mode
-- Transparency handling for layers with alpha
 - Exposed error diffusion weights (user-tweakable kernels)
 - Pattern/artistic algorithms (Knitt, Circuit, Star, Cyber)
-- Color Embue (overlay original colors on dithered output)
+- Debug logging still present
+
+---
+
+## 2026-03-15 19:30 CET — Palette Presets, Color Overlay, Invert & Transparency (Opus)
+
+**By:** Claude Opus 4.6 (feature implementation)
+
+### Features Added
+
+1. **Palette / Indexed Color Mode** (`colorMapping.js`, `DitherEffect.jsx`)
+   - New "Palette (Indexed)" color mapping mode
+   - Maps each pixel to nearest color in a fixed palette using Euclidean RGB distance
+   - 13 built-in palette presets:
+     - Retro: Game Boy, Game Boy Pocket, CGA Cyan, CGA Red, Commodore 64, NES, PICO-8, Apple II
+     - Monochrome: Mono Green, Mono Amber, Sepia, Grayscale 4, Grayscale 8
+   - Palette dropdown appears when "Palette (Indexed)" mode is selected
+
+2. **Color Overlay / Embue** (`colorMapping.js`, `effectProcessor.js`, `DitherEffect.jsx`)
+   - Blends original image colors onto dithered luminance output
+   - Slider 0-100% controls blend strength
+   - Creates tinted dither effects using the source image's colors
+   - Applied as final step after color mapping
+
+3. **Invert Output** (`effectProcessor.js`, `DitherEffect.jsx`)
+   - Checkbox toggle to invert all dithered output channels
+   - Applied after dithering, before color mapping
+
+4. **Transparency Handling** (`effectProcessor.js`, `DitherEffect.jsx`)
+   - "Transparency Skip" slider (0-255 alpha threshold)
+   - Pixels below the alpha threshold are left unmodified (original colors preserved)
+   - Useful for layers with transparency to avoid dithering invisible areas
+
+5. **Halftone Dot Size** (`ditherAlgorithms.js`, `effectProcessor.js`, `DitherEffect.jsx`)
+   - Adjustable dot size (2-20px) for halftone algorithms
+   - Slider appears only when a halftone algorithm is selected
+   - Previously hardcoded to 6px
+
+### Build
+- Webpack compiles successfully with 0 errors
+
+### Remaining TODO
+- Exposed error diffusion weights (user-tweakable kernels)
+- Pattern/artistic algorithms (Knitt, Circuit, Star, Cyber)
 - Debug logging still present

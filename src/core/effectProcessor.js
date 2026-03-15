@@ -75,6 +75,9 @@ export function getDefaultSettings() {
         colorDepth: 1,
         intensity: 1.0,
         pixelScale: 1,
+        halftoneSize: 6,
+        invert: false,
+        transparencyThreshold: 0,
         
         // Color mapping
         colorMode: 'none',
@@ -117,8 +120,32 @@ export function processPixels(pixels, width, height, components, settings) {
         algorithm: settings.algorithm,
         colorDepth: settings.colorDepth,
         intensity: settings.intensity,
-        pixelScale: settings.pixelScale || 1
+        pixelScale: settings.pixelScale || 1,
+        halftoneSize: settings.halftoneSize || 6
     });
+
+    // Step 2b: Invert
+    if (settings.invert) {
+        for (let i = 0; i < processed.length; i++) {
+            if (components === 4 && (i % 4) === 3) continue;
+            processed[i] = 255 - processed[i];
+        }
+    }
+
+    // Step 2c: Transparency handling — preserve original alpha, skip fully transparent pixels
+    if (components === 4 && settings.transparencyThreshold > 0) {
+        const threshold = settings.transparencyThreshold;
+        for (let i = 0; i < processed.length; i += 4) {
+            const alpha = pixels[i + 3];
+            if (alpha < threshold) {
+                // Restore original pixel for transparent areas
+                processed[i] = pixels[i];
+                processed[i + 1] = pixels[i + 1];
+                processed[i + 2] = pixels[i + 2];
+                processed[i + 3] = pixels[i + 3];
+            }
+        }
+    }
 
     // Sample first pixel after dithering
     console.log("[Dither] Output pixel[0]:", processed[0], processed[1], processed[2], components === 4 ? processed[3] : "");

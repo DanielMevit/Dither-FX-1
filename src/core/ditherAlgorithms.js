@@ -277,7 +277,7 @@ export function orderedDither(input, width, height, components, colorDepth, inte
  * Halftone dithering with angle rotation
  * Creates circular dot patterns at specified angle
  */
-export function halftoneDither(input, width, height, components, colorDepth, intensity, angle = 0) {
+export function halftoneDither(input, width, height, components, colorDepth, intensity, angle = 0, dotSize = 6) {
     const levels = Math.pow(2, colorDepth);
     const step = 255 / (levels - 1);
     const output = new Uint8Array(input.length);
@@ -286,7 +286,7 @@ export function halftoneDither(input, width, height, components, colorDepth, int
     const rad = angle * Math.PI / 180;
     const cosA = Math.cos(rad);
     const sinA = Math.sin(rad);
-    const dotSize = 6; // Halftone cell size
+    const cellSize = Math.max(2, dotSize);
 
     for (let y = 0; y < height; y++) {
         const rowStart = y * rowSize;
@@ -299,8 +299,8 @@ export function halftoneDither(input, width, height, components, colorDepth, int
             const ry = x * sinA + y * cosA;
 
             // Position within halftone cell (0..1)
-            const cx = ((rx % dotSize) + dotSize) % dotSize / dotSize;
-            const cy = ((ry % dotSize) + dotSize) % dotSize / dotSize;
+            const cx = ((rx % cellSize) + cellSize) % cellSize / cellSize;
+            const cy = ((ry % cellSize) + cellSize) % cellSize / cellSize;
 
             // Radial distance from cell center (0 = center, 1 = corner)
             const dx = cx - 0.5;
@@ -418,7 +418,8 @@ export function applyDitherAlgorithm(pixelData, width, height, components, optio
         algorithm = 'floyd-steinberg',
         colorDepth = 1,
         intensity = 1.0,
-        pixelScale = 1
+        pixelScale = 1,
+        halftoneSize = 6
     } = options;
 
     let workPixels = pixelData;
@@ -488,13 +489,13 @@ export function applyDitherAlgorithm(pixelData, width, height, components, optio
 
         // Halftone
         case 'halftone-0':
-            result = halftoneDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 0);
+            result = halftoneDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 0, halftoneSize);
             break;
         case 'halftone-22':
-            result = halftoneDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 22.5);
+            result = halftoneDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 22.5, halftoneSize);
             break;
         case 'halftone-45':
-            result = halftoneDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 45);
+            result = halftoneDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 45, halftoneSize);
             break;
 
         // Random
