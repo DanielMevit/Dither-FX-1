@@ -335,7 +335,38 @@ Analyzed two commercial plugins installed on user's system:
 ### Remaining TODO
 - Custom palette / indexed color mode
 - Transparency handling for layers with alpha
-- Save/load settings persistence
+- Exposed error diffusion weights (user-tweakable kernels)
+- Pattern/artistic algorithms (Knitt, Circuit, Star, Cyber)
+- Color Embue (overlay original colors on dithered output)
+- Debug logging still present
+
+---
+
+## 2026-03-15 19:00 CET — Settings Persistence & Gamma Correction (Opus)
+
+**By:** Claude Opus 4.6 (feature implementation)
+
+### Features Added
+
+1. **Settings Persistence** (`DitherEffect.jsx`)
+   - Settings auto-save to `localStorage` on every change via `useEffect` watcher
+   - On mount, `loadSavedSettings()` loads from localStorage and merges with defaults
+   - Key: `dither-fx-settings`
+   - Settings survive panel close/reopen and Photoshop restart
+
+2. **Gamma Correction** (`preprocessing.js`, `effectProcessor.js`, `DitherEffect.jsx`)
+   - `applyGamma()` function with LUT-based gamma correction (256-entry lookup table for speed)
+   - Range: 0.2–3.0 (1.0 = no change, <1 brightens midtones, >1 darkens midtones)
+   - Applied in preprocessing pipeline between contrast and noise
+   - UI slider added in Pre-processing section
+   - Default: 1.0 (no effect)
+
+### Build
+- Webpack compiles successfully with 0 errors
+
+### Remaining TODO
+- Custom palette / indexed color mode
+- Transparency handling for layers with alpha
 - Exposed error diffusion weights (user-tweakable kernels)
 - Pattern/artistic algorithms (Knitt, Circuit, Star, Cyber)
 - Color Embue (overlay original colors on dithered output)

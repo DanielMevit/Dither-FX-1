@@ -213,6 +213,35 @@ export function toGrayscale(input, width, height, components) {
 }
 
 /**
+ * Apply gamma correction
+ * @param {Uint8Array} input - Pixel data
+ * @param {number} components - Color components
+ * @param {number} gamma - Gamma value (0.2-3.0, 1.0 = no change)
+ */
+export function applyGamma(input, components, gamma) {
+    if (gamma === 1.0) return new Uint8Array(input);
+
+    const output = new Uint8Array(input.length);
+    const invGamma = 1.0 / gamma;
+
+    // Build lookup table for speed
+    const lut = new Uint8Array(256);
+    for (let i = 0; i < 256; i++) {
+        lut[i] = Math.max(0, Math.min(255, Math.round(255 * Math.pow(i / 255, invGamma))));
+    }
+
+    for (let i = 0; i < input.length; i++) {
+        if (components === 4 && (i % 4) === 3) {
+            output[i] = input[i];
+        } else {
+            output[i] = lut[input[i]];
+        }
+    }
+
+    return output;
+}
+
+/**
  * Apply all preprocessing in optimal order
  * @param {Uint8Array} input - Pixel data
  * @param {number} width - Image width
@@ -227,36 +256,41 @@ export function applyPreprocessing(input, width, height, components, options) {
         sharpenRadius = 1,
         brightness = 0,
         contrast = 0,
+        gamma = 1.0,
         noise = 0,
         grayscale = false
     } = options;
-    
+
     let result = input;
-    
-    // Order matters: blur -> sharpen -> brightness -> contrast -> noise -> grayscale
+
+    // Order: blur -> sharpen -> brightness -> contrast -> gamma -> noise -> grayscale
     if (blur > 0) {
         result = applyBlur(result, width, height, components, blur);
     }
-    
+
     if (sharpenStrength > 0) {
         result = applySharpen(result, width, height, components, sharpenStrength, sharpenRadius);
     }
-    
+
     if (brightness !== 0) {
         result = applyBrightness(result, components, brightness);
     }
-    
+
     if (contrast !== 0) {
         result = applyContrast(result, components, contrast);
     }
-    
+
+    if (gamma !== 1.0) {
+        result = applyGamma(result, components, gamma);
+    }
+
     if (noise > 0) {
         result = applyNoise(result, components, noise);
     }
-    
+
     if (grayscale) {
         result = toGrayscale(result, width, height, components);
     }
-    
+
     return result;
 }

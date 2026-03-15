@@ -66,6 +66,7 @@ export function getDefaultSettings() {
         sharpenRadius: 1,
         brightness: 0,
         contrast: 0,
+        gamma: 1.0,
         noise: 0,
         grayscale: false,
         
@@ -104,6 +105,7 @@ export function processPixels(pixels, width, height, components, settings) {
         sharpenRadius: settings.sharpenRadius,
         brightness: settings.brightness,
         contrast: settings.contrast,
+        gamma: settings.gamma,
         noise: settings.noise,
         grayscale: settings.grayscale
     });

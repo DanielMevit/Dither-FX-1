@@ -33,9 +33,38 @@ function usePickerRef(callback) {
     return ref;
 }
 
+const SETTINGS_STORAGE_KEY = 'dither-fx-settings';
+
+/**
+ * Load saved settings from localStorage, merging with defaults
+ */
+function loadSavedSettings() {
+    try {
+        const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            return { ...getDefaultSettings(), ...parsed };
+        }
+    } catch (e) {
+        console.warn("[Dither] Could not load saved settings:", e.message);
+    }
+    return getDefaultSettings();
+}
+
+/**
+ * Save current settings to localStorage
+ */
+function saveSettings(settings) {
+    try {
+        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    } catch (e) {
+        console.warn("[Dither] Could not save settings:", e.message);
+    }
+}
+
 export const DitherEffect = () => {
-    // State
-    const [settings, setSettings] = useState(getDefaultSettings());
+    // State — load saved settings on mount
+    const [settings, setSettings] = useState(loadSavedSettings);
     const [isProcessing, setIsProcessing] = useState(false);
     const [status, setStatus] = useState({ type: 'ready', message: 'Ready' });
     const [isLiveMode, setIsLiveMode] = useState(false);
@@ -126,6 +155,11 @@ export const DitherEffect = () => {
             }
         };
     }, []);
+
+    // Auto-save settings whenever they change
+    useEffect(() => {
+        saveSettings(settings);
+    }, [settings]);
 
     // Effect to trigger live updates when settings change
     useEffect(() => {
@@ -439,6 +473,16 @@ export const DitherEffect = () => {
                             max="100"
                             value={settings.contrast}
                             onInput={(e) => updateSetting('contrast', parseInt(e.target.value))}
+                        ></sp-slider>
+                    </div>
+
+                    <div className="control-row slider-row">
+                        <sp-label size="S">Gamma: {(settings.gamma || 1.0).toFixed(1)}</sp-label>
+                        <sp-slider
+                            min="2"
+                            max="30"
+                            value={Math.round((settings.gamma || 1.0) * 10)}
+                            onInput={(e) => updateSetting('gamma', parseInt(e.target.value) / 10)}
                         ></sp-slider>
                     </div>
 
