@@ -80,31 +80,23 @@ dist/                       — Webpack output. Kept in repo for direct UXP load
 ```
 On subsequent slider changes (live mode), steps 3-6 re-run from the cached original pixels. No re-read from Photoshop is needed.
 
-## Known Issues (Track These — See progresslog.md for Details)
-### Bugs
-- **`smartObject` validation dead branch** — specific error message unreachable (layerManager.js:32-37)
-- **`target` picker not implemented** — UI stores value but `initialApply()` always uses active layer
-- **Mono and Duotone produce identical output** — both do the same linear lerp
-- **Tritone midtone range has confusing double-lerp** — `lerpColor(midtone, lerpColor(midtone, highlight, t*0.5), t)` shifts toward highlight in what should be a flat midtone zone
-- **`scale` parameter dead code** — defined in defaults, passed through, used by no algorithm
-- **Reading pixels from hidden original layer** — `getLayerPixels(layer)` is called after `setupDitherStructureInternal()` hides the source layer; pixel reads may return empty/zero data from a hidden layer depending on PS version
-
-### Missing Features
+## Known Issues (Track These — See progresslog.md for Full History)
+### Remaining TODO
+- **`target` picker not implemented** — UI stores value but `initialApply()` always uses active layer. "Flattened Document" and "Selection Only" need processor logic.
 - `sharpenRadius` has no UI slider (hardcoded default of 1)
 - `shadowThreshold` / `highlightThreshold` (tritone) have no UI controls (hardcoded 85/170)
-- `selection` and `flattened` targets not wired up
 - No presets/save/load for settings
-- No undo integration beyond the single "Before Dither" snapshot
+- No `executionContext.isCancelled` check during long processing (large images could freeze PS)
+- `rgbToHex()` exported from colorMapping.js but never called (may be useful for future preset export)
 
-### Dead Code
-- `src/components/` — ColorPicker, Hello, Icons, WC are all starter template leftovers. Not imported by anything in the active plugin.
-- `src/panels/Demos.jsx`, `src/panels/MoreDemos.jsx` — starter demos. Not registered.
-- `src/controllers/CommandController.jsx` — dialog controller. Not used.
-- `DITHER_GROUP_NAME`, `ORIGINAL_LAYER_SUFFIX` exported from layerManager.js but never imported anywhere.
-- `DITHER_ALGORITHMS` and `COLOR_MODES` arrays imported in DitherEffect.jsx but never used (the dropdown is hardcoded).
-- `rgbToHex()` exported from colorMapping.js but never called.
-- `getProcessingInfo()` exported from effectProcessor.js but never called.
-- `DEFAULT_COLORS` imported in DitherEffect.jsx but never used.
+### Fixed in v1.1.0
+- smartObject validation dead branch — FIXED (moved check before array)
+- Pixel read from hidden layer — FIXED (read before hide)
+- Mono/Duotone identical — FIXED (Mono snaps, Duotone uses S-curve)
+- Tritone midtone double-lerp — FIXED (flat midtone)
+- PanelController enabled always true — FIXED (nullish coalescing)
+- `scale` dead parameter — REMOVED
+- All starter template dead code — DELETED (12 files)
 
 ## Code Style
 - Functional React with hooks only (no class components, except the PanelController which is a class)
@@ -123,6 +115,13 @@ npm run watch              # Dev mode — rebuilds on file change via nodemon
 Load via **UXP Developer Tools** → **Add Plugin** → select `dist/manifest.json` → **Load**.
 
 Note: `npm run build` runs webpack in development mode (not production). The webpack config uses `eval-cheap-source-map` devtool which requires `allowCodeGenerationFromStrings: true` in the manifest.
+
+## GitHub & Version Control
+- **Repo:** https://github.com/DanielMevit/Dither-FX-1 (private)
+- **Push from WSL:** use `powershell.exe -Command "Set-Location 'D:\Vibe Coding\Photoshop Plugins\Dither FX 1'; git push origin main"` — Git credentials live on the Windows side, not in WSL
+- **Always push after completing a session's work.** The repo is the online backup and version control source of truth.
+- **Commit messages:** short summary line, blank line, bullet points of changes. Include `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>` at end.
+- **Never force push to main.**
 
 ## When Making Changes
 1. Run `npm run build` after editing — verify 0 errors, 0 warnings
