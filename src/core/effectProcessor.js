@@ -6,15 +6,18 @@
 import { applyPreprocessing } from './preprocessing.js';
 import { applyDitherAlgorithm } from './ditherAlgorithms.js';
 import { applyColorMapping, applyColorOverlay } from './colorMapping.js';
+import { applyCRTEffect, applyChromaticAberration } from './postProcessing.js';
 import {
     getLayerPixels,
     getFlattenedPixels,
     getSelectionPixels,
     putLayerPixels,
     setupDitherStructureInternal,
+    createSnapshotInternal,
     validateLayer,
     revertToSnapshot,
-    finalizeDither
+    finalizeDither,
+    DITHERED_LAYER_SUFFIX
 } from '../ps/layerManager.js';
 
 // Store processing state for real-time updates
@@ -59,8 +62,11 @@ export function getDefaultSettings() {
     return {
         // Target
         target: 'active-layer',
-        
+        maskMode: false,
+        maskFeather: 0,
+
         // Preprocessing
+        denoise: 0,
         blur: 0,
         sharpenStrength: 0,
         sharpenRadius: 1,
@@ -69,7 +75,7 @@ export function getDefaultSettings() {
         gamma: 1.0,
         noise: 0,
         grayscale: false,
-        
+
         // Dithering
         algorithm: 'floyd-steinberg',
         colorDepth: 1,
@@ -79,7 +85,7 @@ export function getDefaultSettings() {
         spread: 1.0,
         invert: false,
         transparencyThreshold: 0,
-        
+
         // Color mapping
         colorMode: 'none',
         shadowColor: '#000000',
@@ -88,7 +94,25 @@ export function getDefaultSettings() {
         shadowThreshold: 85,
         highlightThreshold: 170,
         palettePreset: 'grayscale-4',
-        colorOverlay: 0
+        customPalette: null,
+        paletteColorCount: 8,
+        colorOverlay: 0,
+
+        // Post effects - CRT
+        crtEnabled: false,
+        crtScanlineIntensity: 30,
+        crtScanlineWidth: 2,
+        crtBloomStrength: 0,
+        crtBloomRadius: 3,
+        crtPhosphorGlow: 0,
+        crtVignetteStrength: 0,
+
+        // Post effects - Chromatic Aberration
+        chromaticAberration: 0,
+        chromaticAberrationAngle: 0,
+
+        // Vector output
+        vectorSimplify: 2.0
     };
 }
 
@@ -98,6 +122,7 @@ export function getDefaultSettings() {
 export function processPixels(pixels, width, height, components, settings) {
     // Step 1: Preprocessing
     let processed = applyPreprocessing(pixels, width, height, components, {
+        denoise: settings.denoise,
         blur: settings.blur,
         sharpenStrength: settings.sharpenStrength,
         sharpenRadius: settings.sharpenRadius,
@@ -150,13 +175,33 @@ export function processPixels(pixels, width, height, components, settings) {
             highlightColor: settings.highlightColor,
             shadowThreshold: settings.shadowThreshold,
             highlightThreshold: settings.highlightThreshold,
-            palettePreset: settings.palettePreset
+            palettePreset: settings.palettePreset,
+            customPalette: settings.customPalette
         });
     }
 
     // Step 4: Color overlay (blend original colors onto dithered output)
     if (settings.colorOverlay > 0) {
         processed = applyColorOverlay(processed, pixels, width, height, components, settings.colorOverlay);
+    }
+
+    // Step 5: Post-processing effects
+    if (settings.crtEnabled) {
+        processed = applyCRTEffect(processed, width, height, components, {
+            scanlineIntensity: settings.crtScanlineIntensity,
+            scanlineWidth: settings.crtScanlineWidth,
+            bloomStrength: settings.crtBloomStrength,
+            bloomRadius: settings.crtBloomRadius,
+            phosphorGlow: settings.crtPhosphorGlow,
+            vignetteStrength: settings.crtVignetteStrength
+        });
+    }
+
+    if (settings.chromaticAberration > 0) {
+        processed = applyChromaticAberration(processed, width, height, components, {
+            strength: settings.chromaticAberration,
+            angle: settings.chromaticAberrationAngle
+        });
     }
 
     return processed;
@@ -326,5 +371,86 @@ export async function commitEffect() {
 export async function resetEffect() {
     await revertToSnapshot("Before Dither");
     resetProcessingState();
+}
+
+/**
+ * Batch apply - apply dither effect to all processable layers
+ * Does NOT use processingState — each layer is processed independently
+ */
+export async function batchApply(settings, onProgress) {
+    const photoshop = require("photoshop");
+    const { app, core, action } = photoshop;
+    const doc = app.activeDocument;
+
+    if (!doc) throw new Error("No active document");
+
+    await core.executeAsModal(async (executionContext) => {
+        // Create snapshot before batch
+        await createSnapshotInternal(action, "Before Batch Dither");
+
+        // Find processable layers
+        const layers = [];
+        for (const layer of doc.layers) {
+            if (layer.name.endsWith(DITHERED_LAYER_SUFFIX)) continue;
+            if (layer.kind === 'group') continue;
+            const v = validateLayer(layer);
+            if (v.valid) layers.push(layer);
+        }
+
+        if (layers.length === 0) {
+            throw new Error("No processable layers found");
+        }
+
+        for (let i = 0; i < layers.length; i++) {
+            const layer = layers[i];
+            onProgress?.(`Processing layer ${i + 1}/${layers.length}: ${layer.name}`);
+
+            // Read pixels
+            const pixelData = await getLayerPixels(layer);
+
+            // Duplicate layer
+            await action.batchPlay([
+                { _obj: "select", _target: [{ _ref: "layer", _id: layer.id }] },
+                {
+                    _obj: "duplicate",
+                    _target: [{ _ref: "layer", _enum: "ordinal", _value: "targetEnum" }],
+                    name: layer.name + DITHERED_LAYER_SUFFIX
+                }
+            ], {});
+
+            const ditheredLayer = doc.activeLayers[0];
+
+            // Hide original
+            await action.batchPlay([
+                { _obj: "select", _target: [{ _ref: "layer", _id: layer.id }] },
+                { _obj: "hide", null: [{ _ref: "layer", _enum: "ordinal", _value: "targetEnum" }] }
+            ], {});
+
+            // Process pixels
+            const processed = processPixels(
+                pixelData.pixels,
+                pixelData.width,
+                pixelData.height,
+                pixelData.components,
+                settings
+            );
+
+            // Write to dithered layer
+            await putLayerPixels(doc.id, ditheredLayer.id, processed, {
+                width: pixelData.width,
+                height: pixelData.height,
+                components: pixelData.components,
+                colorSpace: pixelData.colorSpace,
+                bounds: pixelData.bounds
+            });
+
+            // Cleanup
+            try {
+                if (pixelData.imageData?.dispose) pixelData.imageData.dispose();
+            } catch (e) { /* ignore */ }
+        }
+    }, { commandName: "Batch Dither" });
+
+    return true;
 }
 

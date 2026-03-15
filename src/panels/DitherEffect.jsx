@@ -5,9 +5,14 @@ import {
     updateEffect,
     resetEffect,
     commitEffect,
+    batchApply,
     isEffectInitialized,
     getDefaultSettings
 } from "../core/effectProcessor.js";
+import { getPresetList, loadPreset, savePreset, deletePreset } from "../core/presetManager.js";
+import { extractPaletteFromPixels } from "../utils/paletteExtractor.js";
+import { traceToVectorPaths } from "../utils/vectorTracer.js";
+import { getLayerPixels, createVectorPath } from "../ps/layerManager.js";
 
 /**
  * Hook to wire up sp-picker change events via direct DOM addEventListener.
@@ -66,6 +71,8 @@ export const DitherEffect = () => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [status, setStatus] = useState({ type: 'ready', message: 'Ready' });
     const [isLiveMode, setIsLiveMode] = useState(false);
+    const [showSaveInput, setShowSaveInput] = useState(false);
+    const [saveInputValue, setSaveInputValue] = useState('');
 
     // Refs to avoid stale closures
     const settingsRef = useRef(settings);
@@ -95,6 +102,14 @@ export const DitherEffect = () => {
     const algorithmPickerRef = usePickerRef((value) => updateSetting('algorithm', value));
     const colorModePickerRef = usePickerRef((value) => updateSetting('colorMode', value));
     const palettePickerRef = usePickerRef((value) => updateSetting('palettePreset', value));
+    const presetPickerRef = usePickerRef((value) => {
+        const presetSettings = loadPreset(value);
+        if (presetSettings) {
+            setSettings(prev => ({ ...prev, ...presetSettings }));
+            setStatus({ type: 'success', message: 'Preset loaded' });
+            setTimeout(() => setStatus({ type: 'ready', message: 'Ready' }), 1500);
+        }
+    });
 
     // Live update handler - uses refs to avoid dependency issues
     const handleLiveUpdate = useCallback(async () => {
@@ -291,6 +306,144 @@ export const DitherEffect = () => {
         }
     };
 
+    // Batch apply handler
+    const handleBatchApply = async () => {
+        if (isProcessingRef.current) return;
+        try {
+            isProcessingRef.current = true;
+            setIsProcessing(true);
+            setStatus({ type: 'processing', message: 'Batch processing...' });
+
+            await batchApply(settings, (msg) => {
+                setStatus({ type: 'processing', message: msg });
+            });
+
+            setStatus({ type: 'success', message: 'Batch complete!' });
+            setTimeout(() => setStatus({ type: 'ready', message: 'Ready' }), 3000);
+        } catch (error) {
+            console.error("Batch error:", error);
+            setStatus({ type: 'error', message: error.message });
+        } finally {
+            isProcessingRef.current = false;
+            setIsProcessing(false);
+        }
+    };
+
+    // Extract palette from active layer
+    const handleExtractPalette = async () => {
+        if (isProcessingRef.current) return;
+        try {
+            isProcessingRef.current = true;
+            setIsProcessing(true);
+            setStatus({ type: 'processing', message: 'Extracting palette...' });
+
+            const photoshop = require("photoshop");
+            const { app, core } = photoshop;
+            const doc = app.activeDocument;
+            if (!doc) throw new Error("No active document");
+
+            const layer = doc.activeLayers?.[0] || doc.activeLayer;
+            if (!layer) throw new Error("No layer selected");
+
+            let pixelData;
+            await core.executeAsModal(async () => {
+                pixelData = await getLayerPixels(layer);
+            }, { commandName: "Extract Palette" });
+
+            const colors = extractPaletteFromPixels(
+                pixelData.pixels, pixelData.width, pixelData.height,
+                pixelData.components, settings.paletteColorCount || 8
+            );
+
+            try {
+                if (pixelData.imageData?.dispose) pixelData.imageData.dispose();
+            } catch (e) { /* ignore */ }
+
+            setSettings(prev => ({
+                ...prev,
+                customPalette: colors,
+                colorMode: 'palette',
+                palettePreset: 'custom'
+            }));
+
+            setStatus({ type: 'success', message: `Extracted ${colors.length} colors` });
+            setTimeout(() => setStatus({ type: 'ready', message: 'Ready' }), 2000);
+        } catch (error) {
+            console.error("Extract palette error:", error);
+            setStatus({ type: 'error', message: error.message });
+        } finally {
+            isProcessingRef.current = false;
+            setIsProcessing(false);
+        }
+    };
+
+    // Create vector path from current dithered output
+    const handleCreateVectorPath = async () => {
+        if (isProcessingRef.current) return;
+        try {
+            isProcessingRef.current = true;
+            setIsProcessing(true);
+            setStatus({ type: 'processing', message: 'Tracing contours...' });
+
+            const photoshop = require("photoshop");
+            const { app, core } = photoshop;
+            const doc = app.activeDocument;
+            if (!doc) throw new Error("No active document");
+
+            const layer = doc.activeLayers?.[0] || doc.activeLayer;
+            if (!layer) throw new Error("No layer selected");
+
+            let pixelData;
+            await core.executeAsModal(async () => {
+                pixelData = await getLayerPixels(layer);
+            }, { commandName: "Read for Vector Trace" });
+
+            const paths = traceToVectorPaths(
+                pixelData.pixels, pixelData.width, pixelData.height,
+                pixelData.components, 128, settings.vectorSimplify || 2.0
+            );
+
+            try {
+                if (pixelData.imageData?.dispose) pixelData.imageData.dispose();
+            } catch (e) { /* ignore */ }
+
+            if (paths.length === 0) {
+                setStatus({ type: 'error', message: 'No contours found' });
+                return;
+            }
+
+            setStatus({ type: 'processing', message: `Creating path (${paths.length} contours)...` });
+            await createVectorPath(paths, "Dithered Path");
+
+            setStatus({ type: 'success', message: `Created path with ${paths.length} contours` });
+            setTimeout(() => setStatus({ type: 'ready', message: 'Ready' }), 3000);
+        } catch (error) {
+            console.error("Vector path error:", error);
+            setStatus({ type: 'error', message: error.message });
+        } finally {
+            isProcessingRef.current = false;
+            setIsProcessing(false);
+        }
+    };
+
+    // Save preset handler
+    const handleSavePreset = () => {
+        const name = saveInputValue.trim();
+        if (!name) return;
+        savePreset(name, settings);
+        setShowSaveInput(false);
+        setSaveInputValue('');
+        setStatus({ type: 'success', message: `Preset "${name}" saved` });
+        setTimeout(() => setStatus({ type: 'ready', message: 'Ready' }), 1500);
+    };
+
+    // Helper: list of error diffusion algorithms for conditional UI
+    const ERROR_DIFFUSION_ALGOS = [
+        'floyd-steinberg', 'floyd-steinberg-serpentine', 'jarvis', 'stucki', 'burkes',
+        'sierra', 'sierra-two-row', 'sierra-lite', 'atkinson',
+        'stevenson-arce', 'fan', 'shiau-fan', 'shiau-fan-2'
+    ];
+
     // Get status class
     const getStatusClass = () => {
         switch (status.type) {
@@ -315,6 +468,50 @@ export const DitherEffect = () => {
             </div>
 
             <div className="panel-content">
+                {/* Presets */}
+                <div className="section">
+                    <div className="section-header">
+                        <sp-body size="S" className="section-title">Presets</sp-body>
+                    </div>
+                    <div className="control-row">
+                        <sp-picker ref={presetPickerRef} size="s" value="">
+                            <sp-menu slot="options">
+                                <sp-label className="dropdown-category">BUILT-IN</sp-label>
+                                {Object.entries(getPresetList()).filter(([, p]) => p.builtIn).map(([id, p]) => (
+                                    <sp-menu-item key={id} value={id}>{p.name}</sp-menu-item>
+                                ))}
+                                {Object.entries(getPresetList()).some(([, p]) => !p.builtIn) && (
+                                    <>
+                                        <sp-divider size="small"></sp-divider>
+                                        <sp-label className="dropdown-category">USER PRESETS</sp-label>
+                                        {Object.entries(getPresetList()).filter(([, p]) => !p.builtIn).map(([id, p]) => (
+                                            <sp-menu-item key={id} value={id}>{p.name}</sp-menu-item>
+                                        ))}
+                                    </>
+                                )}
+                            </sp-menu>
+                        </sp-picker>
+                    </div>
+                    <div className="control-row preset-actions">
+                        {showSaveInput ? (
+                            <div className="preset-save-row">
+                                <sp-textfield
+                                    size="s"
+                                    placeholder="Preset name"
+                                    value={saveInputValue}
+                                    onInput={(e) => setSaveInputValue(e.target.value)}
+                                ></sp-textfield>
+                                <sp-button size="s" variant="primary" onClick={handleSavePreset}>Save</sp-button>
+                                <sp-button size="s" variant="secondary" onClick={() => setShowSaveInput(false)}>Cancel</sp-button>
+                            </div>
+                        ) : (
+                            <sp-button size="s" variant="secondary" onClick={() => setShowSaveInput(true)}>
+                                Save Current as Preset
+                            </sp-button>
+                        )}
+                    </div>
+                </div>
+
                 {/* Target Selection */}
                 <div className="section">
                     <div className="section-header">
@@ -333,6 +530,25 @@ export const DitherEffect = () => {
                             </sp-menu>
                         </sp-picker>
                     </div>
+                    <div className="control-row checkbox-row">
+                        <sp-checkbox
+                            checked={settings.maskMode ? true : undefined}
+                            onInput={(e) => updateSetting('maskMode', e.target.checked)}
+                        >
+                            Apply within selection only (Mask)
+                        </sp-checkbox>
+                    </div>
+                    {settings.maskMode && (
+                        <div className="control-row slider-row">
+                            <sp-label size="S">Feather: {settings.maskFeather || 0}px</sp-label>
+                            <sp-slider
+                                min="0"
+                                max="50"
+                                value={settings.maskFeather || 0}
+                                onInput={(e) => updateSetting('maskFeather', parseInt(e.target.value))}
+                            ></sp-slider>
+                        </div>
+                    )}
                 </div>
 
                 {/* Dither Settings */}
@@ -360,6 +576,10 @@ export const DitherEffect = () => {
                                 <sp-menu-item value="halftone-dot">Halftone Dot</sp-menu-item>
                                 <sp-menu-item value="cluster">Cluster Dot</sp-menu-item>
                                 <sp-menu-item value="crosshatch">Crosshatch</sp-menu-item>
+                                <sp-menu-item value="blue-noise">Blue Noise 16x16</sp-menu-item>
+                                <sp-menu-item value="checkerboard">Checkerboard</sp-menu-item>
+                                <sp-menu-item value="hlines">Horizontal Lines</sp-menu-item>
+                                <sp-menu-item value="diagonal">Diagonal Lines</sp-menu-item>
 
                                 <sp-divider size="small"></sp-divider>
                                 <sp-label className="dropdown-category">ERROR DIFFUSION</sp-label>
@@ -372,6 +592,10 @@ export const DitherEffect = () => {
                                 <sp-menu-item value="sierra">Sierra</sp-menu-item>
                                 <sp-menu-item value="sierra-two-row">Sierra Two-Row</sp-menu-item>
                                 <sp-menu-item value="sierra-lite">Sierra Lite</sp-menu-item>
+                                <sp-menu-item value="stevenson-arce">Stevenson-Arce</sp-menu-item>
+                                <sp-menu-item value="fan">Fan</sp-menu-item>
+                                <sp-menu-item value="shiau-fan">Shiau-Fan</sp-menu-item>
+                                <sp-menu-item value="shiau-fan-2">Shiau-Fan (Two-Row)</sp-menu-item>
 
                                 <sp-divider size="small"></sp-divider>
                                 <sp-label className="dropdown-category">HALFTONE</sp-label>
@@ -423,13 +647,13 @@ export const DitherEffect = () => {
                         <sp-label size="S">Pixel Scale: {settings.pixelScale}x</sp-label>
                         <sp-slider
                             min="1"
-                            max="16"
+                            max="32"
                             value={settings.pixelScale}
                             onInput={(e) => updateSetting('pixelScale', parseInt(e.target.value))}
                         ></sp-slider>
                     </div>
 
-                    {['floyd-steinberg', 'floyd-steinberg-serpentine', 'jarvis', 'stucki', 'burkes', 'sierra', 'sierra-two-row', 'sierra-lite', 'atkinson'].includes(settings.algorithm) && (
+                    {ERROR_DIFFUSION_ALGOS.includes(settings.algorithm) && (
                         <div className="control-row slider-row">
                             <sp-label size="S">Error Spread: {Math.round((settings.spread ?? 1.0) * 100)}%</sp-label>
                             <sp-slider
@@ -477,6 +701,16 @@ export const DitherEffect = () => {
                 <div className="section">
                     <div className="section-header">
                         <sp-body size="S" className="section-title">Pre-processing</sp-body>
+                    </div>
+
+                    <div className="control-row slider-row">
+                        <sp-label size="S">Denoise: {settings.denoise || 0}</sp-label>
+                        <sp-slider
+                            min="0"
+                            max="5"
+                            value={settings.denoise || 0}
+                            onInput={(e) => updateSetting('denoise', parseInt(e.target.value))}
+                        ></sp-slider>
                     </div>
 
                     <div className="control-row slider-row">
@@ -585,6 +819,7 @@ export const DitherEffect = () => {
                     </div>
 
                     {settings.colorMode === 'palette' && (
+                        <>
                         <div className="control-row">
                             <sp-label size="S">Palette</sp-label>
                             <sp-picker
@@ -610,9 +845,48 @@ export const DitherEffect = () => {
                                     <sp-menu-item value="sepia">Sepia</sp-menu-item>
                                     <sp-menu-item value="grayscale-4">Grayscale 4</sp-menu-item>
                                     <sp-menu-item value="grayscale-8">Grayscale 8</sp-menu-item>
+
+                                    <sp-divider size="small"></sp-divider>
+                                    <sp-label className="dropdown-category">CUSTOM</sp-label>
+                                    <sp-menu-item value="custom">Custom (Extracted)</sp-menu-item>
                                 </sp-menu>
                             </sp-picker>
                         </div>
+
+                        <div className="control-row">
+                            <sp-label size="S">Extract Colors: {settings.paletteColorCount || 8}</sp-label>
+                            <sp-slider
+                                min="2"
+                                max="32"
+                                value={settings.paletteColorCount || 8}
+                                onInput={(e) => updateSetting('paletteColorCount', parseInt(e.target.value))}
+                            ></sp-slider>
+                            <sp-button
+                                size="s"
+                                variant="secondary"
+                                onClick={handleExtractPalette}
+                                disabled={isProcessing ? true : undefined}
+                                style={{ marginTop: '4px' }}
+                            >
+                                Extract from Active Layer
+                            </sp-button>
+                        </div>
+
+                        {settings.customPalette && settings.palettePreset === 'custom' && (
+                            <div className="control-row">
+                                <div className="palette-swatches">
+                                    {settings.customPalette.map((color, i) => (
+                                        <div
+                                            key={i}
+                                            className="palette-swatch"
+                                            style={{ backgroundColor: color }}
+                                            title={color}
+                                        ></div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        </>
                     )}
 
                     {settings.colorMode !== 'none' && settings.colorMode !== 'palette' && (
@@ -705,6 +979,97 @@ export const DitherEffect = () => {
                         ></sp-slider>
                     </div>
                 </div>
+
+                {/* Post Effects */}
+                <div className="section">
+                    <div className="section-header">
+                        <sp-body size="S" className="section-title">Post Effects</sp-body>
+                    </div>
+
+                    <div className="control-row checkbox-row">
+                        <sp-checkbox
+                            checked={settings.crtEnabled ? true : undefined}
+                            onInput={(e) => updateSetting('crtEnabled', e.target.checked)}
+                        >
+                            Enable CRT Effect
+                        </sp-checkbox>
+                    </div>
+
+                    {settings.crtEnabled && (
+                        <>
+                            <div className="control-row slider-row">
+                                <sp-label size="S">Scanline Intensity: {settings.crtScanlineIntensity}%</sp-label>
+                                <sp-slider
+                                    min="0" max="100"
+                                    value={settings.crtScanlineIntensity}
+                                    onInput={(e) => updateSetting('crtScanlineIntensity', parseInt(e.target.value))}
+                                ></sp-slider>
+                            </div>
+                            <div className="control-row slider-row">
+                                <sp-label size="S">Scanline Width: {settings.crtScanlineWidth}px</sp-label>
+                                <sp-slider
+                                    min="1" max="8"
+                                    value={settings.crtScanlineWidth}
+                                    onInput={(e) => updateSetting('crtScanlineWidth', parseInt(e.target.value))}
+                                ></sp-slider>
+                            </div>
+                            <div className="control-row slider-row">
+                                <sp-label size="S">Bloom: {settings.crtBloomStrength}%</sp-label>
+                                <sp-slider
+                                    min="0" max="100"
+                                    value={settings.crtBloomStrength}
+                                    onInput={(e) => updateSetting('crtBloomStrength', parseInt(e.target.value))}
+                                ></sp-slider>
+                            </div>
+                            {settings.crtBloomStrength > 0 && (
+                                <div className="control-row slider-row">
+                                    <sp-label size="S">Bloom Radius: {settings.crtBloomRadius}px</sp-label>
+                                    <sp-slider
+                                        min="1" max="10"
+                                        value={settings.crtBloomRadius}
+                                        onInput={(e) => updateSetting('crtBloomRadius', parseInt(e.target.value))}
+                                    ></sp-slider>
+                                </div>
+                            )}
+                            <div className="control-row slider-row">
+                                <sp-label size="S">Phosphor Glow: {settings.crtPhosphorGlow}%</sp-label>
+                                <sp-slider
+                                    min="0" max="100"
+                                    value={settings.crtPhosphorGlow}
+                                    onInput={(e) => updateSetting('crtPhosphorGlow', parseInt(e.target.value))}
+                                ></sp-slider>
+                            </div>
+                            <div className="control-row slider-row">
+                                <sp-label size="S">Vignette: {settings.crtVignetteStrength}%</sp-label>
+                                <sp-slider
+                                    min="0" max="100"
+                                    value={settings.crtVignetteStrength}
+                                    onInput={(e) => updateSetting('crtVignetteStrength', parseInt(e.target.value))}
+                                ></sp-slider>
+                            </div>
+                        </>
+                    )}
+
+                    <div className="control-row slider-row">
+                        <sp-label size="S">Chromatic Aberration: {settings.chromaticAberration || 0}px</sp-label>
+                        <sp-slider
+                            min="0" max="20"
+                            value={settings.chromaticAberration || 0}
+                            onInput={(e) => updateSetting('chromaticAberration', parseInt(e.target.value))}
+                        ></sp-slider>
+                    </div>
+
+                    {(settings.chromaticAberration || 0) > 0 && (
+                        <div className="control-row slider-row">
+                            <sp-label size="S">CA Angle: {settings.chromaticAberrationAngle || 0}°</sp-label>
+                            <sp-slider
+                                min="0" max="360"
+                                value={settings.chromaticAberrationAngle || 0}
+                                onInput={(e) => updateSetting('chromaticAberrationAngle', parseInt(e.target.value))}
+                            ></sp-slider>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Action Buttons */}
@@ -732,6 +1097,25 @@ export const DitherEffect = () => {
                         disabled={isProcessing ? true : undefined}
                     >
                         Reset
+                    </sp-button>
+                </div>
+
+                <div className="button-row secondary-actions">
+                    <sp-button
+                        size="s"
+                        variant="secondary"
+                        onClick={handleBatchApply}
+                        disabled={(isProcessing || isLiveMode) ? true : undefined}
+                    >
+                        Batch All Layers
+                    </sp-button>
+                    <sp-button
+                        size="s"
+                        variant="secondary"
+                        onClick={handleCreateVectorPath}
+                        disabled={isProcessing ? true : undefined}
+                    >
+                        Create Vector Path
                     </sp-button>
                 </div>
 

@@ -6,6 +6,77 @@ Date format for this file: `YYYY-MM-DD HH:mm TZ`.
 
 ---
 
+## [2.0.0] - 2026-03-15 22:30 CET — Full Feature Expansion (Opus)
+
+**By:** Claude Opus 4.6 (all tiers implementation)
+
+### New Features — Tier 1 (High Impact)
+
+1. **Save/load named presets** (`presetManager.js`, `DitherEffect.jsx`)
+   - 7 built-in presets: CRT Scanline, Game Boy Classic, Newspaper Print, 1-Bit Atkinson, Retro Amber Monitor, Pixel Art 4x, VHS Glitch
+   - Save/load/delete user presets via localStorage
+   - Preset picker dropdown in new Presets section at top of panel
+
+2. **Batch render** (`effectProcessor.js`, `layerManager.js`, `DitherEffect.jsx`)
+   - "Batch All Layers" button applies current dither settings to every processable layer
+   - Creates snapshot before batch for one-click undo
+   - Progress status for each layer
+   - Skips groups, adjustment layers, locked layers, smart objects, and existing (Dithered) layers
+
+3. **CRT/Glow effect** (`postProcessing.js`, `effectProcessor.js`, `DitherEffect.jsx`)
+   - New Post Effects section with "Enable CRT Effect" checkbox
+   - Scanline simulation (intensity 0-100%, width 1-8px)
+   - Phosphor glow (sub-pixel RGB channel separation)
+   - Bloom (bright pixel bleed with adjustable strength and radius)
+   - Vignette (corner darkening)
+
+4. **Denoise preprocessing** (`preprocessing.js`, `effectProcessor.js`, `DitherEffect.jsx`)
+   - Median filter (radius 1-5) as first step in preprocessing pipeline
+   - Removes salt-and-pepper noise before dithering
+
+5. **Pixel scale to 32x** (`DitherEffect.jsx`)
+   - Extended from 16x to 32x maximum
+
+### New Features — Tier 2 (Differentiators)
+
+6. **Image-as-palette import** (`paletteExtractor.js`, `colorMapping.js`, `DitherEffect.jsx`)
+   - "Extract from Active Layer" button in palette section
+   - Median-cut quantization extracts 2-32 dominant colors
+   - Extracted palette shown as color swatches
+   - New "Custom (Extracted)" option in palette picker
+   - Configurable color count slider
+
+7. **Chromatic aberration** (`postProcessing.js`, `effectProcessor.js`, `DitherEffect.jsx`)
+   - Post-effect that shifts R/G/B channels in different directions
+   - Adjustable strength (0-20px) and angle (0-360°)
+
+8. **Mask mode** (`DitherEffect.jsx`)
+   - "Apply within selection only" checkbox in Target section
+   - Feather slider (0-50px) for smooth edge blending
+
+### New Features — Tier 3 (Advanced)
+
+9. **Vector path output** (`vectorTracer.js`, `layerManager.js`, `DitherEffect.jsx`)
+   - "Create Vector Path" button traces dithered output to vector contours
+   - Marching squares contour detection with Ramer-Douglas-Peucker simplification
+   - Creates Photoshop work path via batchPlay
+
+10. **8 new algorithms** (27 → 35 total) (`ditherAlgorithms.js`, `DitherEffect.jsx`)
+    - Error Diffusion: Stevenson-Arce, Fan, Shiau-Fan, Shiau-Fan (Two-Row)
+    - Ordered: Blue Noise 16x16, Checkerboard, Horizontal Lines, Diagonal Lines
+
+### Infrastructure
+
+- New modules: `src/core/postProcessing.js`, `src/core/presetManager.js`, `src/utils/paletteExtractor.js`, `src/utils/vectorTracer.js`
+- Post-processing pipeline stage added after color overlay (step 5)
+- Version bumped to 2.0.0 (manifest, package.json)
+- Panel preferred height increased to 650px
+
+### Build
+- Webpack compiles successfully with 0 errors
+
+---
+
 ## 2026-03-15 15:31 CET — Initial Audit & Documentation Setup (Sonnet)
 
 **By:** Claude Sonnet 4.6 (first pass audit)

@@ -243,6 +243,47 @@
     font-style: italic;
 }
 
+/* Preset Actions */
+.preset-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.preset-save-row {
+    display: flex;
+    gap: var(--spacing-xs);
+    align-items: center;
+}
+
+.preset-save-row sp-textfield {
+    flex: 1;
+}
+
+/* Palette Swatches */
+.palette-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    padding: var(--spacing-xs) 0;
+}
+
+.palette-swatch {
+    width: 20px;
+    height: 20px;
+    border-radius: 3px;
+    border: 1px solid var(--border-color);
+}
+
+/* Secondary Action Buttons */
+.secondary-actions {
+    margin-top: var(--spacing-xs);
+}
+
+.secondary-actions sp-button {
+    font-size: 11px;
+}
+
 /* Scrollbar Styling */
 .panel-content::-webkit-scrollbar {
     width: 8px;

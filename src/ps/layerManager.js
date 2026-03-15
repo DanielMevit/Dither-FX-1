@@ -392,4 +392,58 @@ export async function finalizeDither(ditheredLayerId, originalLayerId) {
     }
 }
 
+/**
+ * Create a vector work path in Photoshop from traced contour data
+ * @param {Array<{points: Array<{x:number, y:number}>, closed: boolean}>} pathData
+ * @param {string} pathName - Name for the path
+ */
+export async function createVectorPath(pathData, pathName = "Dithered Path") {
+    const { core, action } = getPhotoshopAPI();
+
+    if (!pathData || pathData.length === 0) {
+        throw new Error("No path data to create");
+    }
+
+    await core.executeAsModal(async () => {
+        // Build subpath list from all contours
+        const subpathList = pathData.map(contour => ({
+            _obj: "subpath",
+            closedSubpath: contour.closed,
+            points: contour.points.map(p => ({
+                _obj: "pathPoint",
+                anchor: {
+                    _obj: "paint",
+                    horizontal: { _unit: "pixelsUnit", _value: p.x },
+                    vertical: { _unit: "pixelsUnit", _value: p.y }
+                },
+                leftDirection: {
+                    _obj: "paint",
+                    horizontal: { _unit: "pixelsUnit", _value: p.x },
+                    vertical: { _unit: "pixelsUnit", _value: p.y }
+                },
+                rightDirection: {
+                    _obj: "paint",
+                    horizontal: { _unit: "pixelsUnit", _value: p.x },
+                    vertical: { _unit: "pixelsUnit", _value: p.y }
+                },
+                smooth: false
+            }))
+        }));
+
+        await action.batchPlay([{
+            _obj: "make",
+            _target: [{ _ref: "path" }],
+            using: {
+                _obj: "pathClass",
+                name: pathName,
+                pathComponents: [{
+                    _obj: "pathComponent",
+                    shapeOperation: { _enum: "shapeOperation", _value: "add" },
+                    subpathListKey: subpathList
+                }]
+            }
+        }], {});
+    }, { commandName: "Create Vector Path" });
+}
+
 export { DITHERED_LAYER_SUFFIX };

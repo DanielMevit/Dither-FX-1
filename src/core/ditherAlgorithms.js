@@ -134,6 +134,52 @@ const DIAMOND_8x8 = [
     6, 7, 6, 5, 4, 5, 6, 7
 ].map(v => (v / 8) - 0.5);
 
+// Blue noise 16x16 (void-and-cluster approximation)
+const BLUE_NOISE_16x16 = [
+    120,  40, 200,  80, 160,  10, 210, 100, 130,  50, 190,  70, 150,  20, 220, 110,
+     60, 180,  20, 140, 240,  90, 170,  30, 230,  60, 180,  20, 140, 240,  90, 170,
+    230, 110,  70, 210,  50, 130, 250,  80, 150,  10, 210, 110,  50, 170,  30, 250,
+     30, 150,  90, 170,  10, 200,  40, 220, 100, 190,  80, 230, 100,  70, 200, 130,
+    200,  50, 240, 120, 100, 160,  70, 130, 250,  40, 160,  30, 190, 240, 120,  40,
+     80, 130,  10, 180,  60, 230, 190,  20, 170,  90, 240, 120,  60,  10, 160,  90,
+    170, 220, 100,  30, 250, 110,  50, 210, 100,  50, 140,  80, 210, 150, 230,  70,
+     40, 160,  60, 190, 140,  20, 160,  80, 230, 180,  20, 250, 110,  40, 180,  20,
+    250, 110,  80, 230,  70, 180, 240, 130,  10, 120, 200,  60, 170, 100, 130, 240,
+     20, 200, 140,  40, 120, 100,  30, 190,  70, 250, 150,  30, 230,  50, 210,  60,
+    130,  60, 180, 210,  10, 220, 150,  50, 220, 100,  40, 180, 130,  80, 160, 110,
+    220,  90,  30, 160,  80, 170,  60, 240, 140,  80, 210, 110,  10, 240,  30, 190,
+     50, 150, 250, 120, 230,  40, 110, 180,  20, 170,  50, 160,  70, 150, 120, 250,
+    180, 110,  70,  10, 190, 130, 200,  80, 130, 240,  90, 230, 200,  90,  60,  40,
+     20, 210, 140, 100, 240,  60,  20, 250, 100,  30, 140,  20, 120, 180, 220, 140,
+    170,  40, 190,  50, 160,  90, 170, 110, 200,  60, 190, 250,  50, 100,  10, 80
+].map(v => (v / 256) - 0.5);
+
+// Checkerboard 2x2
+const CHECKERBOARD_2x2 = [
+    0, 1,
+    1, 0
+].map(v => (v / 2) - 0.5);
+
+// Horizontal lines 4x4
+const HLINES_4x4 = [
+    0, 0, 0, 0,
+    3, 3, 3, 3,
+    1, 1, 1, 1,
+    2, 2, 2, 2
+].map(v => (v / 4) - 0.5);
+
+// Diagonal lines 8x8
+const DIAGONAL_8x8 = [
+    0, 7, 6, 5, 4, 3, 2, 1,
+    1, 0, 7, 6, 5, 4, 3, 2,
+    2, 1, 0, 7, 6, 5, 4, 3,
+    3, 2, 1, 0, 7, 6, 5, 4,
+    4, 3, 2, 1, 0, 7, 6, 5,
+    5, 4, 3, 2, 1, 0, 7, 6,
+    6, 5, 4, 3, 2, 1, 0, 7,
+    7, 6, 5, 4, 3, 2, 1, 0
+].map(v => (v / 8) - 0.5);
+
 // Cross-hatch pattern
 const CROSSHATCH_8x8 = [
     0, 12, 8, 4, 0, 12, 8, 4,
@@ -203,6 +249,27 @@ const KERNELS = {
     'atkinson': {
         offsets: [[1,0,1], [2,0,1], [-1,1,1], [0,1,1], [1,1,1], [0,2,1]],
         divisor: 8 // Only diffuses 6/8 of error (intentional)
+    },
+    'stevenson-arce': {
+        offsets: [
+            [2,0,32],
+            [-3,1,12], [-1,1,26], [1,1,30], [3,1,16],
+            [-2,2,12], [0,2,26], [2,2,12],
+            [-3,3,5], [-1,3,12], [1,3,12], [3,3,5]
+        ],
+        divisor: 200
+    },
+    'fan': {
+        offsets: [[1,0,7], [-1,1,3], [0,1,5], [1,1,1]],
+        divisor: 16
+    },
+    'shiau-fan': {
+        offsets: [[1,0,4], [-2,1,1], [-1,1,2], [0,1,4], [1,1,1]],
+        divisor: 12
+    },
+    'shiau-fan-2': {
+        offsets: [[1,0,8], [-3,1,1], [-2,1,1], [-1,1,2], [0,1,4], [1,1,2], [2,1,1]],
+        divisor: 19
     }
 };
 
@@ -310,6 +377,10 @@ export function orderedDither(input, width, height, components, colorDepth, inte
         case 'star': matrix = STAR_8x8; size = 8; break;
         case 'cyber': matrix = CYBER_8x8; size = 8; break;
         case 'diamond': matrix = DIAMOND_8x8; size = 8; break;
+        case 'blue-noise': matrix = BLUE_NOISE_16x16; size = 16; break;
+        case 'checkerboard': matrix = CHECKERBOARD_2x2; size = 2; break;
+        case 'hlines': matrix = HLINES_4x4; size = 4; break;
+        case 'diagonal': matrix = DIAGONAL_8x8; size = 8; break;
         default: matrix = BAYER_8x8; size = 8; break;
     }
 
@@ -521,14 +592,21 @@ export function applyDitherAlgorithm(pixelData, width, height, components, optio
         case 'diamond':
         case 'pattern-a':
         case 'pattern-b':
+        case 'blue-noise':
+        case 'checkerboard':
+        case 'hlines':
+        case 'diagonal': {
             const matrixMap = {
                 'bayer-2x2': 'bayer-2x2', 'bayer-4x4': 'bayer-4x4', 'bayer-8x8': 'bayer-8x8',
                 'halftone-dot': 'halftone', 'cluster': 'cluster', 'crosshatch': 'crosshatch',
                 'knit': 'knit', 'circuit': 'circuit', 'star': 'star', 'cyber': 'cyber', 'diamond': 'diamond',
-                'pattern-a': 'pattern-a', 'pattern-b': 'pattern-b'
+                'pattern-a': 'pattern-a', 'pattern-b': 'pattern-b',
+                'blue-noise': 'blue-noise', 'checkerboard': 'checkerboard',
+                'hlines': 'hlines', 'diagonal': 'diagonal'
             };
             result = orderedDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, matrixMap[algorithm]);
             break;
+        }
 
         // Error diffusion
         case 'floyd-steinberg':
@@ -557,6 +635,18 @@ export function applyDitherAlgorithm(pixelData, width, height, components, optio
             break;
         case 'atkinson':
             result = errorDiffusionDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 'atkinson', false, spread);
+            break;
+        case 'stevenson-arce':
+            result = errorDiffusionDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 'stevenson-arce', false, spread);
+            break;
+        case 'fan':
+            result = errorDiffusionDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 'fan', false, spread);
+            break;
+        case 'shiau-fan':
+            result = errorDiffusionDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 'shiau-fan', false, spread);
+            break;
+        case 'shiau-fan-2':
+            result = errorDiffusionDither(workPixels, workWidth, workHeight, components, colorDepth, intensity, 'shiau-fan-2', false, spread);
             break;
 
         // Halftone
@@ -598,6 +688,10 @@ export const DITHER_ALGORITHMS = [
     { value: 'halftone-dot', label: 'Halftone Dot', category: 'Ordered' },
     { value: 'cluster', label: 'Cluster Dot', category: 'Ordered' },
     { value: 'crosshatch', label: 'Crosshatch', category: 'Ordered' },
+    { value: 'blue-noise', label: 'Blue Noise 16x16', category: 'Ordered' },
+    { value: 'checkerboard', label: 'Checkerboard', category: 'Ordered' },
+    { value: 'hlines', label: 'Horizontal Lines', category: 'Ordered' },
+    { value: 'diagonal', label: 'Diagonal Lines', category: 'Ordered' },
 
     { value: 'floyd-steinberg', label: 'Floyd-Steinberg', category: 'Error Diffusion' },
     { value: 'floyd-steinberg-serpentine', label: 'Floyd-Steinberg (Serpentine)', category: 'Error Diffusion' },
@@ -608,6 +702,10 @@ export const DITHER_ALGORITHMS = [
     { value: 'sierra', label: 'Sierra', category: 'Error Diffusion' },
     { value: 'sierra-two-row', label: 'Sierra Two-Row', category: 'Error Diffusion' },
     { value: 'sierra-lite', label: 'Sierra Lite', category: 'Error Diffusion' },
+    { value: 'stevenson-arce', label: 'Stevenson-Arce', category: 'Error Diffusion' },
+    { value: 'fan', label: 'Fan', category: 'Error Diffusion' },
+    { value: 'shiau-fan', label: 'Shiau-Fan', category: 'Error Diffusion' },
+    { value: 'shiau-fan-2', label: 'Shiau-Fan (Two-Row)', category: 'Error Diffusion' },
 
     { value: 'halftone-0', label: 'Halftone 0°', category: 'Halftone' },
     { value: 'halftone-22', label: 'Halftone 22.5°', category: 'Halftone' },

@@ -249,8 +249,62 @@ export function applyGamma(input, components, gamma) {
  * @param {number} components - Color components
  * @param {Object} options - Preprocessing options
  */
+/**
+ * Apply median filter for noise reduction (denoise)
+ * @param {Uint8Array} input - Pixel data
+ * @param {number} width - Image width
+ * @param {number} height - Image height
+ * @param {number} components - Color components (3 or 4)
+ * @param {number} radius - Filter radius (1-5)
+ */
+export function applyMedianFilter(input, width, height, components, radius) {
+    if (radius <= 0) return new Uint8Array(input);
+
+    const output = new Uint8Array(input.length);
+    const kernelSize = 2 * radius + 1;
+    const windowSize = kernelSize * kernelSize;
+    const buf = new Uint8Array(windowSize);
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const idx = (y * width + x) * components;
+
+            for (let c = 0; c < 3; c++) {
+                let count = 0;
+                for (let ky = -radius; ky <= radius; ky++) {
+                    const ny = y + ky;
+                    if (ny < 0 || ny >= height) continue;
+                    for (let kx = -radius; kx <= radius; kx++) {
+                        const nx = x + kx;
+                        if (nx < 0 || nx >= width) continue;
+                        buf[count++] = input[(ny * width + nx) * components + c];
+                    }
+                }
+                // Insertion sort (fast for small arrays)
+                for (let i = 1; i < count; i++) {
+                    const key = buf[i];
+                    let j = i - 1;
+                    while (j >= 0 && buf[j] > key) {
+                        buf[j + 1] = buf[j];
+                        j--;
+                    }
+                    buf[j + 1] = key;
+                }
+                output[idx + c] = buf[Math.floor(count / 2)];
+            }
+
+            if (components === 4) {
+                output[idx + 3] = input[idx + 3];
+            }
+        }
+    }
+
+    return output;
+}
+
 export function applyPreprocessing(input, width, height, components, options) {
     const {
+        denoise = 0,
         blur = 0,
         sharpenStrength = 0,
         sharpenRadius = 1,
@@ -263,7 +317,11 @@ export function applyPreprocessing(input, width, height, components, options) {
 
     let result = input;
 
-    // Order: blur -> sharpen -> brightness -> contrast -> gamma -> noise -> grayscale
+    // Order: denoise -> blur -> sharpen -> brightness -> contrast -> gamma -> noise -> grayscale
+    if (denoise > 0) {
+        result = applyMedianFilter(result, width, height, components, denoise);
+    }
+
     if (blur > 0) {
         result = applyBlur(result, width, height, components, blur);
     }

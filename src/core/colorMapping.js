@@ -172,6 +172,10 @@ export function applyColorMapping(input, width, height, components, options) {
             );
 
         case 'palette': {
+            // Use custom extracted palette if available, otherwise use preset
+            if (options.customPalette && options.palettePreset === 'custom') {
+                return applyPaletteMapping(input, width, height, components, options.customPalette);
+            }
             const preset = options.palettePreset || 'grayscale-4';
             const paletteData = PALETTE_PRESETS[preset];
             const colors = paletteData ? paletteData.colors : ['#000000', '#ffffff'];

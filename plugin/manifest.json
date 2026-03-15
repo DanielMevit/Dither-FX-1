@@ -1,7 +1,7 @@
 {
   "id": "dither-fx-1",
   "name": "Dither FX",
-  "version": "1.3.0",
+  "version": "2.0.0",
   "main": "index.html",
   "manifestVersion": 5,
   "host": [
@@ -46,11 +46,11 @@
       },
       "preferredDockedSize": {
         "width": 320,
-        "height": 500
+        "height": 650
       },
       "preferredFloatingSize": {
         "width": 320,
-        "height": 500
+        "height": 650
       },
       "icons": [
         {
