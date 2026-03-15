@@ -82,12 +82,16 @@ On subsequent slider changes (live mode), steps 3-6 re-run from the cached origi
 
 ## Known Issues (Track These — See progresslog.md for Full History)
 ### Remaining TODO
-- **`target` picker not implemented** — UI stores value but `initialApply()` always uses active layer. "Flattened Document" and "Selection Only" need processor logic.
-- `sharpenRadius` has no UI slider (hardcoded default of 1)
-- `shadowThreshold` / `highlightThreshold` (tritone) have no UI controls (hardcoded 85/170)
 - No presets/save/load for settings
 - No `executionContext.isCancelled` check during long processing (large images could freeze PS)
 - `rgbToHex()` exported from colorMapping.js but never called (may be useful for future preset export)
+
+### Fixed in v1.1.1
+- Target picker fully wired — `initialApply()` dispatches on `settings.target` (active-layer, flattened, selection)
+- `getFlattenedPixels()` uses composite mode (no temp layer) for cleaner flattened reads
+- `getSelectionPixels()` reads from active selection bounds, falls back to full layer
+- Sharpen Radius UI slider — conditionally shown when sharpenStrength > 0
+- Tritone threshold sliders — Shadow Threshold (10–120), Highlight Threshold (130–245)
 
 ### Fixed in v1.1.0
 - smartObject validation dead branch — FIXED (moved check before array)

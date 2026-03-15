@@ -318,6 +318,18 @@ export const DitherEffect = () => {
                             onInput={(e) => updateSetting('sharpenStrength', parseInt(e.target.value))}
                         ></sp-slider>
                     </div>
+
+                    {settings.sharpenStrength > 0 && (
+                        <div className="control-row slider-row">
+                            <sp-label size="S">Sharpen Radius: {settings.sharpenRadius}px</sp-label>
+                            <sp-slider
+                                min="1"
+                                max="10"
+                                value={settings.sharpenRadius}
+                                onInput={(e) => updateSetting('sharpenRadius', parseInt(e.target.value))}
+                            ></sp-slider>
+                        </div>
+                    )}
                     
                     <div className="control-row slider-row">
                         <sp-label size="S">Brightness: {settings.brightness}</sp-label>
@@ -435,6 +447,29 @@ export const DitherEffect = () => {
                                     ></sp-textfield>
                                 </div>
                             </div>
+
+                            {settings.colorMode === 'tritone' && (
+                                <>
+                                    <div className="control-row slider-row">
+                                        <sp-label size="S">Shadow Threshold: {settings.shadowThreshold}</sp-label>
+                                        <sp-slider
+                                            min="10"
+                                            max="120"
+                                            value={settings.shadowThreshold}
+                                            onInput={(e) => updateSetting('shadowThreshold', parseInt(e.target.value))}
+                                        ></sp-slider>
+                                    </div>
+                                    <div className="control-row slider-row">
+                                        <sp-label size="S">Highlight Threshold: {settings.highlightThreshold}</sp-label>
+                                        <sp-slider
+                                            min="130"
+                                            max="245"
+                                            value={settings.highlightThreshold}
+                                            onInput={(e) => updateSetting('highlightThreshold', parseInt(e.target.value))}
+                                        ></sp-slider>
+                                    </div>
+                                </>
+                            )}
                         </>
                     )}
                 </div>

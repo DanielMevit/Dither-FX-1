@@ -57,6 +57,109 @@ export function validateLayer(layer) {
 }
 
 /**
+ * Get flattened document pixels - MUST be called within executeAsModal
+ * Uses composite mode (no layerID) to read the merged document without creating temp layers
+ */
+export async function getFlattenedPixels(action, app) {
+    const { imaging } = getPhotoshopAPI();
+    const doc = app.activeDocument;
+
+    const bounds = {
+        left: 0,
+        top: 0,
+        right: doc.width,
+        bottom: doc.height
+    };
+
+    // Omitting layerID returns the document composite (all visible layers merged)
+    const getResult = await imaging.getPixels({
+        documentID: doc.id,
+        sourceBounds: bounds,
+        colorSpace: "RGB"
+    });
+
+    if (!getResult?.imageData) {
+        throw new Error("Failed to get flattened pixels");
+    }
+
+    const imageData = getResult.imageData;
+    const pixelBuffer = await imageData.getData({ chunky: true });
+
+    return {
+        pixels: pixelBuffer,
+        width: imageData.width,
+        height: imageData.height,
+        components: imageData.components,
+        colorSpace: imageData.colorSpace || "RGB",
+        colorProfile: imageData.colorProfile,
+        bounds: bounds,
+        imageData: imageData
+    };
+}
+
+/**
+ * Get pixels from selection bounds only - MUST be called within executeAsModal
+ * Falls back to full layer if no selection exists
+ */
+export async function getSelectionPixels(action, app, layer) {
+    const { imaging } = getPhotoshopAPI();
+    const doc = app.activeDocument;
+
+    // Check if there's an active selection
+    let selectionBounds;
+    try {
+        const selResult = await action.batchPlay([
+            {
+                _obj: "get",
+                _target: [{ _ref: "property", _property: "selection" }, { _ref: "document", _enum: "ordinal", _value: "targetEnum" }]
+            }
+        ], {});
+
+        const sel = selResult[0]?.selection;
+        if (sel && sel.top !== undefined) {
+            selectionBounds = {
+                left: sel.left?._value ?? sel.left ?? 0,
+                top: sel.top?._value ?? sel.top ?? 0,
+                right: sel.right?._value ?? sel.right ?? doc.width,
+                bottom: sel.bottom?._value ?? sel.bottom ?? doc.height
+            };
+        }
+    } catch (e) {
+        // No selection — fall through
+    }
+
+    if (!selectionBounds) {
+        // No selection active, fall back to full layer
+        console.log("No selection found, using full layer");
+        return getLayerPixels(layer);
+    }
+
+    const getResult = await imaging.getPixels({
+        layerID: layer.id,
+        sourceBounds: selectionBounds,
+        colorSpace: "RGB"
+    });
+
+    if (!getResult?.imageData) {
+        throw new Error("Failed to get selection pixels");
+    }
+
+    const imageData = getResult.imageData;
+    const pixelBuffer = await imageData.getData({ chunky: true });
+
+    return {
+        pixels: pixelBuffer,
+        width: imageData.width,
+        height: imageData.height,
+        components: imageData.components,
+        colorSpace: imageData.colorSpace || "RGB",
+        colorProfile: imageData.colorProfile,
+        bounds: selectionBounds,
+        imageData: imageData
+    };
+}
+
+/**
  * Get pixel data from a layer - MUST be called within executeAsModal
  */
 export async function getLayerPixels(layer) {

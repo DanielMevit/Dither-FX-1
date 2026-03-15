@@ -192,3 +192,41 @@ Removed unused exports:
 - `shadowThreshold` / `highlightThreshold` still have no UI controls
 - `rgbToHex()` still exported but unused (may be useful for future preset export)
 - No `executionContext.isCancelled` check for large image processing
+
+---
+
+## 2026-03-15 16:10 CET — Feature Implementation & API Simplification (Opus)
+
+**By:** Claude Opus 4.6 (implementation session)
+
+### Features Implemented
+
+1. **Target picker fully wired** (`effectProcessor.js`, `layerManager.js`)
+   - `initialApply()` now dispatches on `settings.target`: `'active-layer'`, `'flattened'`, `'selection'`
+   - Added `getFlattenedPixels()` — reads document composite pixels
+   - Added `getSelectionPixels()` — reads pixels within active selection bounds, falls back to full layer if no selection
+
+2. **Sharpen Radius UI slider** (`DitherEffect.jsx`)
+   - Conditionally shown when `sharpenStrength > 0`
+   - Range: 1–10px, updates live via `onInput`
+
+3. **Tritone threshold sliders** (`DitherEffect.jsx`)
+   - Shadow Threshold (10–120) and Highlight Threshold (130–245) sliders
+   - Conditionally shown when `colorMode === 'tritone'`
+   - Updates live via `onInput`
+
+### API Simplification
+
+4. **`getFlattenedPixels()` simplified** (`layerManager.js`)
+   - Replaced stamp-visible + read + delete-temp-layer approach with UXP composite mode
+   - `imaging.getPixels()` without `layerID` (using `documentID` only) returns merged composite of all visible layers
+   - Eliminates layer creation/deletion side effects, cleaner and faster
+
+### Build
+- Webpack compiles successfully with 0 errors
+
+### Remaining TODO
+- `rgbToHex()` still exported but unused (may be useful for future preset export)
+- No `executionContext.isCancelled` check for large image processing
+- No presets/save/load for settings
+- Research findings from dither tools (Dithermark, Ditter Studio, etc.) not yet incorporated

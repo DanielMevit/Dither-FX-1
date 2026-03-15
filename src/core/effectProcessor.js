@@ -8,6 +8,8 @@ import { applyDitherAlgorithm } from './ditherAlgorithms.js';
 import { applyColorMapping } from './colorMapping.js';
 import {
     getLayerPixels,
+    getFlattenedPixels,
+    getSelectionPixels,
     putLayerPixels,
     setupDitherStructureInternal,
     validateLayer,
@@ -142,9 +144,21 @@ export async function initialApply(layer, settings, onProgress) {
     await core.executeAsModal(async (executionContext) => {
         const doc = app.activeDocument;
         
-        // Read pixels BEFORE hiding the source layer (hidden layers may return empty data)
+        // Read pixels based on target setting
         onProgress?.("Reading pixels...");
-        const pixelData = await getLayerPixels(layer);
+        let pixelData;
+        switch (settings.target) {
+            case 'flattened':
+                pixelData = await getFlattenedPixels(action, app);
+                break;
+            case 'selection':
+                pixelData = await getSelectionPixels(action, app, layer);
+                break;
+            case 'active-layer':
+            default:
+                pixelData = await getLayerPixels(layer);
+                break;
+        }
 
         // Setup structure (creates dithered layer, hides original)
         onProgress?.("Creating layers...");
