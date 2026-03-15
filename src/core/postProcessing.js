@@ -30,7 +30,8 @@ export function applyCRTEffect(input, width, height, components, options) {
         vignetteStrength = 0
     } = options;
 
-    let result = new Uint8Array(input);
+    // Ensure we have a mutable copy (UXP may share buffer with new Uint8Array())
+    let result = input.slice(0);
 
     // 1. Phosphor glow — sub-pixel RGB channel separation
     if (phosphorGlow > 0) {
@@ -168,7 +169,7 @@ export function applyCRTEffect(input, width, height, components, options) {
  */
 export function applyChromaticAberration(input, width, height, components, options) {
     const { strength = 5, angle = 0 } = options;
-    if (strength <= 0) return new Uint8Array(input);
+    if (strength <= 0) return input.slice(0);
 
     const output = new Uint8Array(input.length);
     const rad = angle * Math.PI / 180;

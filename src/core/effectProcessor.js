@@ -321,7 +321,21 @@ export async function updateEffect(settings, onProgress) {
         resetProcessingState();
         throw new Error("Document changed. Please Apply again.");
     }
-    
+
+    // Verify dithered layer still exists
+    const doc = app.activeDocument;
+    let layerExists = false;
+    for (const layer of doc.layers) {
+        if (layer.id === processingState.ditheredLayerId) {
+            layerExists = true;
+            break;
+        }
+    }
+    if (!layerExists) {
+        resetProcessingState();
+        throw new Error("Dithered layer not found. Please Apply again.");
+    }
+
     await core.executeAsModal(async (executionContext) => {
         onProgress?.("Updating...");
         

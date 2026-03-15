@@ -80,6 +80,7 @@ export const DitherEffect = () => {
     const isLiveModeRef = useRef(false);
     const debounceTimerRef = useRef(null);
     const initialApplyDoneRef = useRef(false);
+    const abortRef = useRef({ aborted: false });
 
     // Keep refs in sync
     settingsRef.current = settings;
@@ -103,6 +104,12 @@ export const DitherEffect = () => {
     const colorModePickerRef = usePickerRef((value) => updateSetting('colorMode', value));
     const palettePickerRef = usePickerRef((value) => updateSetting('palettePreset', value));
     const presetPickerRef = usePickerRef((value) => {
+        if (value === '__none__') {
+            setSettings(getDefaultSettings());
+            setStatus({ type: 'success', message: 'Preset cleared' });
+            setTimeout(() => setStatus({ type: 'ready', message: 'Ready' }), 1500);
+            return;
+        }
         const presetSettings = loadPreset(value);
         if (presetSettings) {
             setSettings(prev => ({ ...prev, ...presetSettings }));
@@ -377,13 +384,29 @@ export const DitherEffect = () => {
         }
     };
 
+    // Cancel any running operation
+    const handleCancel = useCallback(() => {
+        abortRef.current.aborted = true;
+        // Clear debounce timer
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+            debounceTimerRef.current = null;
+        }
+        isProcessingRef.current = false;
+        setIsProcessing(false);
+        setStatus({ type: 'ready', message: 'Cancelled' });
+        setTimeout(() => setStatus({ type: 'ready', message: 'Ready' }), 1500);
+    }, []);
+
     // Create vector path from current dithered output
     const handleCreateVectorPath = async () => {
         if (isProcessingRef.current) return;
+        // Reset abort signal
+        abortRef.current = { aborted: false };
         try {
             isProcessingRef.current = true;
             setIsProcessing(true);
-            setStatus({ type: 'processing', message: 'Tracing contours...' });
+            setStatus({ type: 'processing', message: 'Reading pixels...' });
 
             const photoshop = require("photoshop");
             const { app, core } = photoshop;
@@ -398,26 +421,40 @@ export const DitherEffect = () => {
                 pixelData = await getLayerPixels(layer);
             }, { commandName: "Read for Vector Trace" });
 
+            if (abortRef.current.aborted) return;
+
+            console.log(`[Vector] Tracing ${pixelData.width}x${pixelData.height} image...`);
+            setStatus({ type: 'processing', message: `Tracing ${pixelData.width}x${pixelData.height}...` });
+
             const paths = traceToVectorPaths(
                 pixelData.pixels, pixelData.width, pixelData.height,
-                pixelData.components, 128, settings.vectorSimplify || 2.0
+                pixelData.components, 128, settings.vectorSimplify || 2.0,
+                abortRef.current
             );
 
             try {
                 if (pixelData.imageData?.dispose) pixelData.imageData.dispose();
             } catch (e) { /* ignore */ }
 
+            if (abortRef.current.aborted) return;
+
             if (paths.length === 0) {
                 setStatus({ type: 'error', message: 'No contours found' });
                 return;
             }
 
-            setStatus({ type: 'processing', message: `Creating path (${paths.length} contours)...` });
+            const totalPoints = paths.reduce((sum, p) => sum + p.points.length, 0);
+            console.log(`[Vector] Found ${paths.length} contours, ${totalPoints} total points`);
+            setStatus({ type: 'processing', message: `Creating path (${paths.length} contours, ${totalPoints} pts)...` });
+
             await createVectorPath(paths, "Dithered Path");
+
+            if (abortRef.current.aborted) return;
 
             setStatus({ type: 'success', message: `Created path with ${paths.length} contours` });
             setTimeout(() => setStatus({ type: 'ready', message: 'Ready' }), 3000);
         } catch (error) {
+            if (abortRef.current.aborted) return;
             console.error("Vector path error:", error);
             setStatus({ type: 'error', message: error.message });
         } finally {
@@ -474,8 +511,10 @@ export const DitherEffect = () => {
                         <sp-body size="S" className="section-title">Presets</sp-body>
                     </div>
                     <div className="control-row">
-                        <sp-picker ref={presetPickerRef} size="s" value="">
+                        <sp-picker ref={presetPickerRef} size="s" value="__none__">
                             <sp-menu slot="options">
+                                <sp-menu-item value="__none__">None</sp-menu-item>
+                                <sp-divider size="small"></sp-divider>
                                 <sp-label className="dropdown-category">BUILT-IN</sp-label>
                                 {Object.entries(getPresetList()).filter(([, p]) => p.builtIn).map(([id, p]) => (
                                     <sp-menu-item key={id} value={id}>{p.name}</sp-menu-item>
@@ -1099,6 +1138,17 @@ export const DitherEffect = () => {
                         Reset
                     </sp-button>
                 </div>
+
+                {isProcessing && (
+                    <div className="button-row">
+                        <sp-button
+                            variant="warning"
+                            onClick={handleCancel}
+                        >
+                            Cancel
+                        </sp-button>
+                    </div>
+                )}
 
                 <div className="button-row secondary-actions">
                     <sp-button

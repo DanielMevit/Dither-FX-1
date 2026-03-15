@@ -11,9 +11,10 @@
  * @param {number} components - Color components (3 or 4)
  * @param {number} threshold - Luminance threshold for black/white (0-255)
  * @param {number} simplifyEpsilon - Path simplification tolerance (0.5-10)
+ * @param {Object} [abortSignal] - { aborted: boolean } to cancel mid-trace
  * @returns {Array<{points: Array<{x:number, y:number}>, closed: boolean}>}
  */
-export function traceToVectorPaths(pixels, width, height, components, threshold = 128, simplifyEpsilon = 2.0) {
+export function traceToVectorPaths(pixels, width, height, components, threshold = 128, simplifyEpsilon = 2.0, abortSignal) {
     // Step 1: Convert to 1-bit binary grid
     const grid = new Uint8Array(width * height);
     for (let y = 0; y < height; y++) {
@@ -24,26 +25,35 @@ export function traceToVectorPaths(pixels, width, height, components, threshold 
         }
     }
 
+    if (abortSignal?.aborted) return [];
+
     // Step 2: Marching squares contour detection
-    const contours = marchingSquares(grid, width, height);
+    const contours = marchingSquares(grid, width, height, abortSignal);
 
-    // Step 3: Simplify paths
-    const simplified = contours.map(contour => ({
-        points: simplifyPath(contour.points, simplifyEpsilon),
-        closed: contour.closed
-    }));
+    if (abortSignal?.aborted) return [];
 
-    // Filter out degenerate paths
-    return simplified.filter(c => c.points.length >= 3);
+    // Step 3: Simplify paths and filter
+    const result = [];
+    for (const contour of contours) {
+        if (abortSignal?.aborted) return [];
+        const simplified = simplifyPath(contour.points, simplifyEpsilon);
+        if (simplified.length >= 3) {
+            result.push({ points: simplified, closed: contour.closed });
+        }
+    }
+
+    return result;
 }
 
 /**
  * Marching squares algorithm
  * Returns array of contour polylines
  */
-function marchingSquares(grid, width, height) {
-    const visited = new Set();
+function marchingSquares(grid, width, height, abortSignal) {
+    // Use a flat Uint8Array for visited tracking instead of Set with string keys
+    const visited = new Uint8Array(width * height);
     const contours = [];
+    const MAX_CONTOURS = 200;
 
     // Helper to get grid value with boundary check
     function getVal(x, y) {
@@ -61,12 +71,14 @@ function marchingSquares(grid, width, height) {
 
     // Find contour edges using marching squares
     for (let y = 0; y < height - 1; y++) {
+        if (abortSignal?.aborted) return contours;
         for (let x = 0; x < width - 1; x++) {
+            if (contours.length >= MAX_CONTOURS) return contours;
+
             const cellCase = getCase(x, y);
             if (cellCase === 0 || cellCase === 15) continue;
 
-            const key = `${x},${y}`;
-            if (visited.has(key)) continue;
+            if (visited[y * width + x]) continue;
 
             // Trace contour starting from this cell
             const points = traceContour(x, y, getCase, visited, width, height);
@@ -87,17 +99,25 @@ function traceContour(startX, startY, getCase, visited, width, height) {
     let x = startX;
     let y = startY;
     let prevDir = -1;
-    const maxSteps = (width + height) * 4;
+    // Limit steps to prevent infinite loops
+    const maxSteps = Math.min((width + height) * 4, 50000);
     let steps = 0;
 
     do {
-        const key = `${x},${y}`;
-        visited.add(key);
+        visited[y * width + x] = 1;
 
         const cellCase = getCase(x, y);
-        const point = getCellPoint(x, y, cellCase);
-        if (point) {
-            points.push(point);
+
+        // Get the two edge-crossing points for this cell case
+        const edgePoints = getCellEdgePoints(x, y, cellCase);
+        if (edgePoints) {
+            for (const p of edgePoints) {
+                // Avoid adding duplicate consecutive points
+                const last = points[points.length - 1];
+                if (!last || Math.abs(last.x - p.x) > 0.01 || Math.abs(last.y - p.y) > 0.01) {
+                    points.push(p);
+                }
+            }
         }
 
         // Determine next cell based on case
@@ -121,19 +141,38 @@ function traceContour(startX, startY, getCase, visited, width, height) {
 }
 
 /**
- * Get the interpolated point for a marching squares cell
+ * Get edge-crossing point(s) for a marching squares cell.
+ * Returns array of 1 point on the contour edge for this cell.
+ * Points are placed at the midpoint of the edge being crossed.
+ *
+ * Cell corners:  TL(x,y)----TR(x+1,y)
+ *                  |            |
+ *                BL(x,y+1)--BR(x+1,y+1)
+ *
+ * Edges: Top=(x+0.5, y), Right=(x+1, y+0.5), Bottom=(x+0.5, y+1), Left=(x, y+0.5)
  */
-function getCellPoint(x, y, cellCase) {
-    // Return a point on the edge of the cell based on the case
+function getCellEdgePoints(x, y, cellCase) {
+    const top    = { x: x + 0.5, y: y };
+    const right  = { x: x + 1,   y: y + 0.5 };
+    const bottom = { x: x + 0.5, y: y + 1 };
+    const left   = { x: x,       y: y + 0.5 };
+
+    // Each case crosses specific edges. Return the entry point for the contour direction.
     switch (cellCase) {
-        case 1: case 14: return { x: x, y: y + 0.5 };
-        case 2: case 13: return { x: x + 0.5, y: y + 1 };
-        case 3: case 12: return { x: x, y: y + 0.5 };
-        case 4: case 11: return { x: x + 1, y: y + 0.5 };
-        case 5: return { x: x + 0.5, y: y };
-        case 6: case 9: return { x: x + 0.5, y: y };
-        case 7: case 8: return { x: x, y: y + 0.5 };
-        case 10: return { x: x + 0.5, y: y + 1 };
+        case 1:  return [left];      // BL only
+        case 2:  return [bottom];    // BR only
+        case 3:  return [left];      // BL+BR → left to bottom
+        case 4:  return [right];     // TR only
+        case 5:  return [top, left]; // saddle TL+BR empty
+        case 6:  return [right];     // TR+BR → right to bottom
+        case 7:  return [left];      // only TL empty
+        case 8:  return [top];       // TL only
+        case 9:  return [top];       // TL+BL → top to left
+        case 10: return [bottom, top]; // saddle TR+BL empty
+        case 11: return [top];       // only TR empty
+        case 12: return [right];     // TL+TR → top to right
+        case 13: return [bottom];    // only BL empty
+        case 14: return [right];     // only BR empty
         default: return null;
     }
 }
@@ -163,33 +202,48 @@ function getDirection(cellCase, prevDir) {
 }
 
 /**
- * Ramer-Douglas-Peucker path simplification
+ * Ramer-Douglas-Peucker path simplification (iterative to avoid stack overflow)
  * Reduces point count while preserving shape
  */
 function simplifyPath(points, epsilon) {
     if (points.length <= 2) return points;
 
-    // Find the point with maximum distance from the line segment
-    let maxDist = 0;
-    let maxIdx = 0;
-    const first = points[0];
-    const last = points[points.length - 1];
+    const keep = new Uint8Array(points.length);
+    keep[0] = 1;
+    keep[points.length - 1] = 1;
 
-    for (let i = 1; i < points.length - 1; i++) {
-        const dist = pointToLineDistance(points[i], first, last);
-        if (dist > maxDist) {
-            maxDist = dist;
-            maxIdx = i;
+    // Iterative stack-based RDP
+    const stack = [[0, points.length - 1]];
+
+    while (stack.length > 0) {
+        const [start, end] = stack.pop();
+        if (end - start < 2) continue;
+
+        let maxDist = 0;
+        let maxIdx = start;
+        const first = points[start];
+        const last = points[end];
+
+        for (let i = start + 1; i < end; i++) {
+            const dist = pointToLineDistance(points[i], first, last);
+            if (dist > maxDist) {
+                maxDist = dist;
+                maxIdx = i;
+            }
+        }
+
+        if (maxDist > epsilon) {
+            keep[maxIdx] = 1;
+            stack.push([start, maxIdx]);
+            stack.push([maxIdx, end]);
         }
     }
 
-    if (maxDist > epsilon) {
-        const left = simplifyPath(points.slice(0, maxIdx + 1), epsilon);
-        const right = simplifyPath(points.slice(maxIdx), epsilon);
-        return [...left.slice(0, -1), ...right];
+    const result = [];
+    for (let i = 0; i < points.length; i++) {
+        if (keep[i]) result.push(points[i]);
     }
-
-    return [first, last];
+    return result;
 }
 
 /**

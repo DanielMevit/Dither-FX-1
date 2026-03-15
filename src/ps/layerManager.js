@@ -404,25 +404,29 @@ export async function createVectorPath(pathData, pathName = "Dithered Path") {
         throw new Error("No path data to create");
     }
 
+    // Sort contours by point count descending, keep largest 100 max
+    const sorted = [...pathData].sort((a, b) => b.points.length - a.points.length);
+    const limited = sorted.slice(0, 100);
+
     await core.executeAsModal(async () => {
-        // Build subpath list from all contours
-        const subpathList = pathData.map(contour => ({
-            _obj: "subpath",
-            closedSubpath: contour.closed,
-            points: contour.points.map(p => ({
+        // Build subpath list — each contour is a subpath
+        const subpathList = limited.map(contour => ({
+            _obj: "subpathsList",
+            closedSubpath: contour.closed !== false,
+            subpathListKey: contour.points.map(p => ({
                 _obj: "pathPoint",
                 anchor: {
-                    _obj: "paint",
+                    _obj: "point",
                     horizontal: { _unit: "pixelsUnit", _value: p.x },
                     vertical: { _unit: "pixelsUnit", _value: p.y }
                 },
                 leftDirection: {
-                    _obj: "paint",
+                    _obj: "point",
                     horizontal: { _unit: "pixelsUnit", _value: p.x },
                     vertical: { _unit: "pixelsUnit", _value: p.y }
                 },
                 rightDirection: {
-                    _obj: "paint",
+                    _obj: "point",
                     horizontal: { _unit: "pixelsUnit", _value: p.x },
                     vertical: { _unit: "pixelsUnit", _value: p.y }
                 },
@@ -430,17 +434,16 @@ export async function createVectorPath(pathData, pathName = "Dithered Path") {
             }))
         }));
 
+        // Create work path using pathContents > pathClassContents structure
         await action.batchPlay([{
-            _obj: "make",
-            _target: [{ _ref: "path" }],
-            using: {
+            _obj: "set",
+            _target: [{ _ref: "path", _property: "workPath" }],
+            to: {
                 _obj: "pathClass",
-                name: pathName,
-                pathComponents: [{
-                    _obj: "pathComponent",
-                    shapeOperation: { _enum: "shapeOperation", _value: "add" },
+                pathContents: {
+                    _obj: "pathClassContents",
                     subpathListKey: subpathList
-                }]
+                }
             }
         }], {});
     }, { commandName: "Create Vector Path" });
