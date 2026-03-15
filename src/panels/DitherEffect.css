@@ -1,4 +1,4 @@
-/* Dither Effect Panel - Complete Styling */
+/* Dither Effect Panel - Compact Styling */
 
 /* CSS Variables */
 :root {
@@ -11,15 +11,14 @@
     --success-color: #2d9d78;
     --error-color: #e34850;
     --warning-color: #e68619;
-    
-    --spacing-xs: 4px;
-    --spacing-sm: 8px;
-    --spacing-md: 12px;
-    --spacing-lg: 16px;
-    --spacing-xl: 20px;
-    
-    --border-radius: 6px;
-    --border-radius-sm: 4px;
+
+    --spacing-xs: 2px;
+    --spacing-sm: 4px;
+    --spacing-md: 6px;
+    --spacing-lg: 8px;
+
+    --border-radius: 4px;
+    --border-radius-sm: 3px;
 }
 
 /* Main Panel Container */
@@ -51,16 +50,16 @@
 .live-badge {
     background-color: var(--success-color);
     color: white;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 10px;
+    padding: 1px 6px;
+    border-radius: 8px;
     letter-spacing: 0.5px;
 }
 
 /* Status Bar */
 .status-bar {
-    padding: var(--spacing-sm) var(--spacing-lg);
+    padding: 3px var(--spacing-lg);
     border-bottom: 1px solid var(--border-color);
     flex-shrink: 0;
     transition: background-color 0.2s ease;
@@ -70,32 +69,17 @@
     margin: 0;
 }
 
-.status-ready {
-    background-color: var(--section-bg);
-    color: var(--text-secondary);
-}
-
-.status-processing {
-    background-color: rgba(38, 128, 235, 0.15);
-    color: var(--accent-color);
-}
-
-.status-success {
-    background-color: rgba(45, 157, 120, 0.15);
-    color: var(--success-color);
-}
-
-.status-error {
-    background-color: rgba(227, 72, 80, 0.15);
-    color: var(--error-color);
-}
+.status-ready { background-color: var(--section-bg); color: var(--text-secondary); }
+.status-processing { background-color: rgba(38, 128, 235, 0.15); color: var(--accent-color); }
+.status-success { background-color: rgba(45, 157, 120, 0.15); color: var(--success-color); }
+.status-error { background-color: rgba(227, 72, 80, 0.15); color: var(--error-color); }
 
 /* Panel Content - Scrollable Area */
 .panel-content {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: var(--spacing-md);
+    padding: var(--spacing-sm);
 }
 
 /* Sections */
@@ -103,15 +87,16 @@
     background-color: var(--section-bg);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
-    margin-bottom: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
     overflow: hidden;
 }
 
+/* Section header — standalone title row */
 .section-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: var(--spacing-sm) var(--spacing-md);
+    padding: 3px var(--spacing-lg);
     background-color: rgba(0, 0, 0, 0.3);
     border-bottom: 1px solid var(--border-color);
 }
@@ -121,14 +106,34 @@
     font-weight: 600;
     color: var(--text-primary);
     text-transform: uppercase;
-    font-size: 11px;
+    font-size: 10px;
     letter-spacing: 0.5px;
+}
+
+/* Inline header — title + picker on the same row */
+.section-header-inline {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px var(--spacing-lg);
+    background-color: rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.section-header-inline .section-title {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.section-header-inline sp-picker {
+    flex: 1;
+    min-width: 0;
 }
 
 /* Control Rows */
 .control-row {
-    padding: var(--spacing-sm) var(--spacing-md);
-    border-bottom: 1px solid rgba(67, 67, 67, 0.5);
+    padding: 3px var(--spacing-lg);
+    border-bottom: 1px solid rgba(67, 67, 67, 0.3);
 }
 
 .control-row:last-child {
@@ -137,9 +142,9 @@
 
 .control-row sp-label {
     display: block;
-    margin-bottom: var(--spacing-xs);
+    margin-bottom: 0;
     color: var(--text-secondary);
-    font-size: 11px;
+    font-size: 10px;
 }
 
 .control-row sp-picker {
@@ -148,7 +153,7 @@
 
 .control-row sp-slider {
     width: 100%;
-    margin-top: var(--spacing-xs);
+    margin-top: 0;
 }
 
 /* Slider Rows */
@@ -165,7 +170,7 @@
 }
 
 .checkbox-row sp-checkbox {
-    font-size: 12px;
+    font-size: 11px;
 }
 
 /* Color Input Rows */
@@ -178,12 +183,12 @@
     display: flex;
     align-items: center;
     gap: var(--spacing-sm);
-    margin-top: var(--spacing-xs);
+    margin-top: 1px;
 }
 
 .color-input {
-    width: 32px;
-    height: 32px;
+    width: 24px;
+    height: 24px;
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-sm);
     padding: 0;
@@ -191,14 +196,8 @@
     background: none;
 }
 
-.color-input::-webkit-color-swatch-wrapper {
-    padding: 2px;
-}
-
-.color-input::-webkit-color-swatch {
-    border: none;
-    border-radius: 2px;
-}
+.color-input::-webkit-color-swatch-wrapper { padding: 1px; }
+.color-input::-webkit-color-swatch { border: none; border-radius: 2px; }
 
 .color-input-wrapper sp-textfield {
     flex: 1;
@@ -211,7 +210,7 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     padding-left: var(--spacing-sm);
-    margin-top: var(--spacing-xs);
+    margin-top: 1px;
 }
 
 /* Footer - Action Buttons */
@@ -238,9 +237,10 @@
 .live-hint {
     display: block;
     text-align: center;
-    margin-top: var(--spacing-sm);
+    margin-top: var(--spacing-xs);
     color: var(--text-secondary);
     font-style: italic;
+    font-size: 10px;
 }
 
 /* Preset Actions */
@@ -264,14 +264,14 @@
 .palette-swatches {
     display: flex;
     flex-wrap: wrap;
-    gap: 3px;
-    padding: var(--spacing-xs) 0;
+    gap: 2px;
+    padding: 2px 0;
 }
 
 .palette-swatch {
-    width: 20px;
-    height: 20px;
-    border-radius: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 2px;
     border: 1px solid var(--border-color);
 }
 
@@ -281,26 +281,19 @@
 }
 
 .secondary-actions sp-button {
-    font-size: 11px;
+    font-size: 10px;
+}
+
+/* Cancel row */
+.cancel-row {
+    margin-top: var(--spacing-xs);
 }
 
 /* Scrollbar Styling */
-.panel-content::-webkit-scrollbar {
-    width: 8px;
-}
-
-.panel-content::-webkit-scrollbar-track {
-    background: var(--panel-bg);
-}
-
-.panel-content::-webkit-scrollbar-thumb {
-    background-color: var(--border-color);
-    border-radius: 4px;
-}
-
-.panel-content::-webkit-scrollbar-thumb:hover {
-    background-color: #555;
-}
+.panel-content::-webkit-scrollbar { width: 6px; }
+.panel-content::-webkit-scrollbar-track { background: var(--panel-bg); }
+.panel-content::-webkit-scrollbar-thumb { background-color: var(--border-color); border-radius: 3px; }
+.panel-content::-webkit-scrollbar-thumb:hover { background-color: #555; }
 
 /* Spectrum Component Overrides */
 sp-slider {
@@ -343,25 +336,11 @@ sp-checkbox {
 
 /* Responsive adjustments */
 @media (max-width: 280px) {
-    .panel-header {
-        padding: var(--spacing-sm) var(--spacing-md);
-    }
-    
-    .panel-content {
-        padding: var(--spacing-sm);
-    }
-    
-    .section-header {
-        padding: var(--spacing-xs) var(--spacing-sm);
-    }
-    
-    .control-row {
-        padding: var(--spacing-xs) var(--spacing-sm);
-    }
-    
-    .panel-footer {
-        padding: var(--spacing-sm) var(--spacing-md);
-    }
+    .panel-header { padding: var(--spacing-sm) var(--spacing-md); }
+    .panel-content { padding: 2px; }
+    .section-header, .section-header-inline { padding: 2px var(--spacing-sm); }
+    .control-row { padding: 2px var(--spacing-sm); }
+    .panel-footer { padding: var(--spacing-sm) var(--spacing-md); }
 }
 
 /* Light theme support */
@@ -375,27 +354,10 @@ sp-checkbox {
         --accent-color: #0070d1;
     }
 
-    .panel-header {
-        background-color: #e8e8e8;
-    }
-
-    .panel-footer {
-        background-color: #e8e8e8;
-    }
-
-    .status-bar {
-        background-color: #e0e0e0;
-    }
-
-    .panel-content::-webkit-scrollbar-track {
-        background: #e8e8e8;
-    }
-
-    .panel-content::-webkit-scrollbar-thumb {
-        background-color: #bbb;
-    }
-
-    .panel-content::-webkit-scrollbar-thumb:hover {
-        background-color: #999;
-    }
+    .panel-header { background-color: #e8e8e8; }
+    .panel-footer { background-color: #e8e8e8; }
+    .status-bar { background-color: #e0e0e0; }
+    .panel-content::-webkit-scrollbar-track { background: #e8e8e8; }
+    .panel-content::-webkit-scrollbar-thumb { background-color: #bbb; }
+    .panel-content::-webkit-scrollbar-thumb:hover { background-color: #999; }
 }

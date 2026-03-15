@@ -507,10 +507,8 @@ export const DitherEffect = () => {
             <div className="panel-content">
                 {/* Presets */}
                 <div className="section">
-                    <div className="section-header">
-                        <sp-body size="S" className="section-title">Presets</sp-body>
-                    </div>
-                    <div className="control-row">
+                    <div className="section-header-inline">
+                        <sp-body size="S" className="section-title">Preset</sp-body>
                         <sp-picker ref={presetPickerRef} size="s" value="__none__">
                             <sp-menu slot="options">
                                 <sp-menu-item value="__none__">None</sp-menu-item>
@@ -553,10 +551,8 @@ export const DitherEffect = () => {
 
                 {/* Target Selection */}
                 <div className="section">
-                    <div className="section-header">
+                    <div className="section-header-inline">
                         <sp-body size="S" className="section-title">Target</sp-body>
-                    </div>
-                    <div className="control-row">
                         <sp-picker
                             ref={targetPickerRef}
                             size="s"
@@ -574,7 +570,7 @@ export const DitherEffect = () => {
                             checked={settings.maskMode ? true : undefined}
                             onInput={(e) => updateSetting('maskMode', e.target.checked)}
                         >
-                            Apply within selection only (Mask)
+                            Mask mode
                         </sp-checkbox>
                     </div>
                     {settings.maskMode && (
@@ -592,12 +588,8 @@ export const DitherEffect = () => {
 
                 {/* Dither Settings */}
                 <div className="section">
-                    <div className="section-header">
-                        <sp-body size="S" className="section-title">Dither Algorithm</sp-body>
-                    </div>
-
-                    <div className="control-row">
-                        <sp-label size="S">Algorithm</sp-label>
+                    <div className="section-header-inline">
+                        <sp-body size="S" className="section-title">Algorithm</sp-body>
                         <sp-picker
                             ref={algorithmPickerRef}
                             size="s"
@@ -661,9 +653,8 @@ export const DitherEffect = () => {
                             </sp-menu>
                         </sp-picker>
                     </div>
-
                     <div className="control-row slider-row">
-                        <sp-label size="S">Color Depth: {settings.colorDepth} bit ({Math.pow(2, settings.colorDepth)} levels)</sp-label>
+                        <sp-label size="S">Depth: {settings.colorDepth}bit ({Math.pow(2, settings.colorDepth)} lvl)</sp-label>
                         <sp-slider
                             min="1"
                             max="6"
@@ -836,12 +827,8 @@ export const DitherEffect = () => {
 
                 {/* Color Mapping */}
                 <div className="section">
-                    <div className="section-header">
-                        <sp-body size="S" className="section-title">Color Mapping</sp-body>
-                    </div>
-
-                    <div className="control-row">
-                        <sp-label size="S">Mode</sp-label>
+                    <div className="section-header-inline">
+                        <sp-body size="S" className="section-title">Color</sp-body>
                         <sp-picker
                             ref={colorModePickerRef}
                             size="s"
@@ -860,7 +847,6 @@ export const DitherEffect = () => {
                     {settings.colorMode === 'palette' && (
                         <>
                         <div className="control-row">
-                            <sp-label size="S">Palette</sp-label>
                             <sp-picker
                                 ref={palettePickerRef}
                                 size="s"
@@ -893,7 +879,7 @@ export const DitherEffect = () => {
                         </div>
 
                         <div className="control-row">
-                            <sp-label size="S">Extract Colors: {settings.paletteColorCount || 8}</sp-label>
+                            <sp-label size="S">Colors: {settings.paletteColorCount || 8}</sp-label>
                             <sp-slider
                                 min="2"
                                 max="32"
@@ -905,9 +891,9 @@ export const DitherEffect = () => {
                                 variant="secondary"
                                 onClick={handleExtractPalette}
                                 disabled={isProcessing ? true : undefined}
-                                style={{ marginTop: '4px' }}
+                                style={{ marginTop: '2px' }}
                             >
-                                Extract from Active Layer
+                                Extract from Layer
                             </sp-button>
                         </div>
 
@@ -1021,91 +1007,63 @@ export const DitherEffect = () => {
 
                 {/* Post Effects */}
                 <div className="section">
-                    <div className="section-header">
-                        <sp-body size="S" className="section-title">Post Effects</sp-body>
-                    </div>
-
-                    <div className="control-row checkbox-row">
+                    <div className="section-header-inline">
+                        <sp-body size="S" className="section-title">Post FX</sp-body>
                         <sp-checkbox
                             checked={settings.crtEnabled ? true : undefined}
                             onInput={(e) => updateSetting('crtEnabled', e.target.checked)}
                         >
-                            Enable CRT Effect
+                            CRT
                         </sp-checkbox>
                     </div>
 
                     {settings.crtEnabled && (
                         <>
                             <div className="control-row slider-row">
-                                <sp-label size="S">Scanline Intensity: {settings.crtScanlineIntensity}%</sp-label>
-                                <sp-slider
-                                    min="0" max="100"
-                                    value={settings.crtScanlineIntensity}
-                                    onInput={(e) => updateSetting('crtScanlineIntensity', parseInt(e.target.value))}
-                                ></sp-slider>
+                                <sp-label size="S">Scanlines: {settings.crtScanlineIntensity}%</sp-label>
+                                <sp-slider min="0" max="100" value={settings.crtScanlineIntensity}
+                                    onInput={(e) => updateSetting('crtScanlineIntensity', parseInt(e.target.value))}></sp-slider>
                             </div>
                             <div className="control-row slider-row">
-                                <sp-label size="S">Scanline Width: {settings.crtScanlineWidth}px</sp-label>
-                                <sp-slider
-                                    min="1" max="8"
-                                    value={settings.crtScanlineWidth}
-                                    onInput={(e) => updateSetting('crtScanlineWidth', parseInt(e.target.value))}
-                                ></sp-slider>
+                                <sp-label size="S">Line Width: {settings.crtScanlineWidth}px</sp-label>
+                                <sp-slider min="1" max="8" value={settings.crtScanlineWidth}
+                                    onInput={(e) => updateSetting('crtScanlineWidth', parseInt(e.target.value))}></sp-slider>
                             </div>
                             <div className="control-row slider-row">
                                 <sp-label size="S">Bloom: {settings.crtBloomStrength}%</sp-label>
-                                <sp-slider
-                                    min="0" max="100"
-                                    value={settings.crtBloomStrength}
-                                    onInput={(e) => updateSetting('crtBloomStrength', parseInt(e.target.value))}
-                                ></sp-slider>
+                                <sp-slider min="0" max="100" value={settings.crtBloomStrength}
+                                    onInput={(e) => updateSetting('crtBloomStrength', parseInt(e.target.value))}></sp-slider>
                             </div>
                             {settings.crtBloomStrength > 0 && (
                                 <div className="control-row slider-row">
-                                    <sp-label size="S">Bloom Radius: {settings.crtBloomRadius}px</sp-label>
-                                    <sp-slider
-                                        min="1" max="10"
-                                        value={settings.crtBloomRadius}
-                                        onInput={(e) => updateSetting('crtBloomRadius', parseInt(e.target.value))}
-                                    ></sp-slider>
+                                    <sp-label size="S">Bloom R: {settings.crtBloomRadius}px</sp-label>
+                                    <sp-slider min="1" max="10" value={settings.crtBloomRadius}
+                                        onInput={(e) => updateSetting('crtBloomRadius', parseInt(e.target.value))}></sp-slider>
                                 </div>
                             )}
                             <div className="control-row slider-row">
-                                <sp-label size="S">Phosphor Glow: {settings.crtPhosphorGlow}%</sp-label>
-                                <sp-slider
-                                    min="0" max="100"
-                                    value={settings.crtPhosphorGlow}
-                                    onInput={(e) => updateSetting('crtPhosphorGlow', parseInt(e.target.value))}
-                                ></sp-slider>
+                                <sp-label size="S">Phosphor: {settings.crtPhosphorGlow}%</sp-label>
+                                <sp-slider min="0" max="100" value={settings.crtPhosphorGlow}
+                                    onInput={(e) => updateSetting('crtPhosphorGlow', parseInt(e.target.value))}></sp-slider>
                             </div>
                             <div className="control-row slider-row">
                                 <sp-label size="S">Vignette: {settings.crtVignetteStrength}%</sp-label>
-                                <sp-slider
-                                    min="0" max="100"
-                                    value={settings.crtVignetteStrength}
-                                    onInput={(e) => updateSetting('crtVignetteStrength', parseInt(e.target.value))}
-                                ></sp-slider>
+                                <sp-slider min="0" max="100" value={settings.crtVignetteStrength}
+                                    onInput={(e) => updateSetting('crtVignetteStrength', parseInt(e.target.value))}></sp-slider>
                             </div>
                         </>
                     )}
 
                     <div className="control-row slider-row">
-                        <sp-label size="S">Chromatic Aberration: {settings.chromaticAberration || 0}px</sp-label>
-                        <sp-slider
-                            min="0" max="20"
-                            value={settings.chromaticAberration || 0}
-                            onInput={(e) => updateSetting('chromaticAberration', parseInt(e.target.value))}
-                        ></sp-slider>
+                        <sp-label size="S">Chroma Shift: {settings.chromaticAberration || 0}px</sp-label>
+                        <sp-slider min="0" max="20" value={settings.chromaticAberration || 0}
+                            onInput={(e) => updateSetting('chromaticAberration', parseInt(e.target.value))}></sp-slider>
                     </div>
-
                     {(settings.chromaticAberration || 0) > 0 && (
                         <div className="control-row slider-row">
-                            <sp-label size="S">CA Angle: {settings.chromaticAberrationAngle || 0}°</sp-label>
-                            <sp-slider
-                                min="0" max="360"
-                                value={settings.chromaticAberrationAngle || 0}
-                                onInput={(e) => updateSetting('chromaticAberrationAngle', parseInt(e.target.value))}
-                            ></sp-slider>
+                            <sp-label size="S">Shift Angle: {settings.chromaticAberrationAngle || 0}°</sp-label>
+                            <sp-slider min="0" max="360" value={settings.chromaticAberrationAngle || 0}
+                                onInput={(e) => updateSetting('chromaticAberrationAngle', parseInt(e.target.value))}></sp-slider>
                         </div>
                     )}
                 </div>
@@ -1140,13 +1098,8 @@ export const DitherEffect = () => {
                 </div>
 
                 {isProcessing && (
-                    <div className="button-row">
-                        <sp-button
-                            variant="warning"
-                            onClick={handleCancel}
-                        >
-                            Cancel
-                        </sp-button>
+                    <div className="button-row cancel-row">
+                        <sp-button variant="warning" onClick={handleCancel}>Cancel</sp-button>
                     </div>
                 )}
 
