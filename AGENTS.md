@@ -43,7 +43,7 @@ src/
     effectProcessor.js      — Pipeline orchestrator. Manages processingState (cached original pixels,
                               dithered layer ID, document ID). Exposes initialApply(), updateEffect(),
                               commitEffect(), resetEffect(), processPixels().
-    ditherAlgorithms.js     — 27 dither algorithms: generic error diffusion engine with kernel lookup,
+    ditherAlgorithms.js     — 35 dither algorithms: generic error diffusion engine with kernel lookup,
                               ordered dithering with 13 matrices, halftone with angle rotation,
                               pixel scaling (downscale → dither → upscale), random noise.
     preprocessing.js        — Image preprocessing: box blur, unsharp mask, brightness, contrast,
@@ -77,7 +77,11 @@ dist/                       — Webpack output. Kept in repo for direct UXP load
    Maps luminance to user-defined colors or indexed palette
 8. applyColorOverlay():    (if colorOverlay > 0)
    Blends original image colors onto dithered luminance
-9. putLayerPixels()        → writes result to the "(Dithered)" layer
+9. applyCRTEffect():       (if crtEnabled)
+   Scanlines, phosphor glow, bloom, vignette
+10. applyChromaticAberration(): (if chromaticAberration > 0)
+    RGB channel separation
+11. putLayerPixels()        → writes result to the "(Dithered)" layer
 ```
 On subsequent slider changes (live mode), steps 3–9 re-run from the cached original pixels.
 
@@ -113,7 +117,8 @@ Always run `npm run build` after changes. Must compile with 0 errors before comm
 - **v1.1** (done): Project rename, bug fixes (smartObject validation, pixel read ordering, mono/duotone differentiation, tritone midtone, PanelController enabled), dead code cleanup, GitHub setup
 - **v1.2** (done): Target picker wired (active/flattened/selection), sharpen radius UI, tritone threshold sliders, colorProfile fix, UXP bounds normalization, sp-picker ref fix, Done button
 - **v1.3** (done): Algorithm expansion (9→27), pixel scale, settings persistence, gamma correction, palette presets (13), color overlay, invert, transparency handling, halftone dot size, artistic patterns (5), error spread control
-- **v2.0** (next): See ROADMAP.md for competitive analysis and feature plan
+- **v2.0** (done): Presets (7 built-in + user), batch render, CRT/glow post-effect, denoise, 32x pixel scale, image-as-palette extraction, chromatic aberration, mask mode, vector path output, 8 new algorithms (35 total)
+- **v2.1** (next): See ROADMAP.md for remaining competitive gaps
 
 ## Commit & push
 - Commit message format: short summary line, blank line, bullet points of changes.
