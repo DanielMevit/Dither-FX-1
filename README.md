@@ -48,7 +48,7 @@ Load in Photoshop via **UXP Developer Tools** → **Add Plugin** → select `dis
 
 ## License
 
-Open source under **Apache License 2.0**. See [`LICENSE`](LICENSE), [`LICENSING.md`](LICENSING.md), and [`NOTICE`](NOTICE).
+Open source under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. See [`LICENSE`](LICENSE), [`LICENSING.md`](LICENSING.md), and [`NOTICE`](NOTICE).
 
 ## Structure
 
@@ -58,7 +58,7 @@ Dither FX 1/
   README.md             ← this file
   CHANGELOG.md          ← release notes
   ROADMAP.md            ← planned enhancements
-  LICENSE               ← Apache 2.0
+  LICENSE               ← GNU AGPL v3.0
   LICENSING.md          ← how licensing applies to this project
   NOTICE                ← copyright and third-party note
   src/

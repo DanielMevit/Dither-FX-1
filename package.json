@@ -10,7 +10,7 @@
     "uxp:debug": "cd dist && uxp plugin debug"
   },
   "author": "Daniel Mevit",
-  "license": "Apache-2.0",
+  "license": "AGPL-3.0-only",
   "devDependencies": {
     "@babel/core": "^7.8.7",
     "@babel/plugin-proposal-object-rest-spread": "^7.8.3",
