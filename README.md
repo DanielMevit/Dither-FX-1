@@ -50,6 +50,8 @@ Load in Photoshop via **UXP Developer Tools** → **Add Plugin** → select `dis
 
 Open source under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. See [`LICENSE`](LICENSE), [`LICENSING.md`](LICENSING.md), and [`NOTICE`](NOTICE).
 
+**No warranty — use at your own risk.** The software is provided **“as is”** without warranty. You are responsible for your documents and for how you use the plugin inside Photoshop. The full disclaimer of warranty and limitation of liability is in [`LICENSE`](LICENSE) (AGPL sections 15–17). This README is not legal advice.
+
 ## Structure
 
 ```
