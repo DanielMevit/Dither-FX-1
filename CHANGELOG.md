@@ -8,8 +8,6 @@ Date format for this file: `YYYY-MM-DD HH:mm TZ`.
 
 ## [2.0.1] - 2026-03-16 01:00 CET — Bug Fixes + Compact UI
 
-**By:** Claude Opus 4.6
-
 ### Bug Fixes
 - Fix CRT/chromatic aberration UXP buffer copy (`input.slice(0)` instead of `new Uint8Array`)
 - Fix vector path batchPlay descriptor format (`pathContents`/`pathClassContents` structure)
@@ -28,13 +26,11 @@ Date format for this file: `YYYY-MM-DD HH:mm TZ`.
 
 ### Docs
 - Update README.md to reflect v2.0 features and file structure
-- Update AGENTS.md architecture section
+- Update `agent instructions/AGENTS.md` architecture section
 
 ---
 
-## [2.0.0] - 2026-03-15 22:30 CET — Full Feature Expansion (Opus)
-
-**By:** Claude Opus 4.6 (all tiers implementation)
+## [2.0.0] - 2026-03-15 22:30 CET — Full feature expansion
 
 ### New Features — Tier 1 (High Impact)
 
@@ -103,9 +99,7 @@ Date format for this file: `YYYY-MM-DD HH:mm TZ`.
 
 ---
 
-## 2026-03-15 15:31 CET — Initial Audit & Documentation Setup (Sonnet)
-
-**By:** Claude Sonnet 4.6 (first pass audit)
+## 2026-03-15 15:31 CET — Initial audit & documentation setup
 
 ### What Was Found (Existing State)
 Full working dithering pipeline already implemented:
@@ -142,20 +136,18 @@ Full working dithering pipeline already implemented:
 6. **`shadowThreshold` / `highlightThreshold`** — tritone thresholds not exposed; hardcoded to 85/170
 
 ### Files Created This Session
-- `soul.md` — Claude guidelines: architecture, UXP rules, known issues, code style
-- `README.md` — Replaced boilerplate Adobe starter README with plugin-specific docs + agent role definition
-- `progresslog.md` — This file (initial entry)
+- `agent instructions/SOUL.md` — Guidelines: architecture, UXP rules, known issues, code style
+- `README.md` — Replaced boilerplate Adobe starter README with plugin-specific docs + contributor notes
+- Internal progress log (initial entry)
 
 ---
 
-## 2026-03-15 15:37 CET — Deep Audit & Documentation Rewrite (Opus)
-
-**By:** Claude Opus 4.6 (comprehensive re-audit)
+## 2026-03-15 15:37 CET — Deep audit & documentation rewrite
 
 ### Full Codebase Review
-Read every file in the project (all source files, configs, starter leftovers, webpack config, manifest, HTML entry point, CSS). This entry supersedes and expands the Sonnet audit above.
+Read every file in the project (all source files, configs, starter leftovers, webpack config, manifest, HTML entry point, CSS). This entry supersedes and expands the earlier audit above.
 
-### Additional Bugs Found (Beyond Sonnet Audit)
+### Additional bugs found (beyond earlier audit)
 
 7. **Pixel read from hidden layer** (`src/core/effectProcessor.js:157`)
    - `setupDitherStructureInternal()` hides the original source layer at line 180-183 of `layerManager.js`
@@ -218,15 +210,13 @@ These add no functionality and increase bundle size. They can be safely deleted.
 - No error handling for `imaging.createImageDataFromBuffer()` — if it fails (e.g., memory), the modal throws and leaves the document in a partially modified state
 
 ### Files Rewritten This Session
-- `soul.md` — Complete rewrite with full architecture map, all dead code cataloged, all known issues, expanded build/test instructions
-- `README.md` — Complete rewrite with accurate feature list, agent role definition including all UXP rules, comprehensive TODO/bug list
-- `progresslog.md` — Added this detailed Opus audit entry (previous Sonnet entry preserved above)
+- `agent instructions/SOUL.md` — Expanded architecture map, dead code notes, known issues, build/test instructions
+- `README.md` — Updated feature list, project overview, and UXP-oriented contributor notes
+- Changelog — Added detailed audit entry (previous entry preserved above)
 
 ---
 
-## 2026-03-15 15:45 CET — Bug Fixes, Dead Code Cleanup & GitHub Setup (Opus)
-
-**By:** Claude Opus 4.6 (implementation session)
+## 2026-03-15 15:45 CET — Bug fixes, dead code cleanup & GitHub setup
 
 ### Project Renamed
 - Folder renamed from `Test-a50im4` to `Dither FX 1`
@@ -294,9 +284,7 @@ Removed unused exports:
 
 ---
 
-## 2026-03-15 16:10 CET — Feature Implementation & API Simplification (Opus)
-
-**By:** Claude Opus 4.6 (implementation session)
+## 2026-03-15 16:10 CET — Feature implementation & API simplification
 
 ### Features Implemented
 
@@ -328,13 +316,10 @@ Removed unused exports:
 - `rgbToHex()` still exported but unused (may be useful for future preset export)
 - No `executionContext.isCancelled` check for large image processing
 - No presets/save/load for settings
-- Research findings from dither tools (Dithermark, Ditter Studio, etc.) not yet incorporated
 
 ---
 
-## 2026-03-15 17:15 CET — Critical Bug Fixes & Done Button (Opus)
-
-**By:** Claude Opus 4.6 (debugging + feature session)
+## 2026-03-15 17:15 CET — Critical bug fixes & Done button
 
 ### Critical Bugs Fixed
 
@@ -370,7 +355,7 @@ Removed unused exports:
 
 ### Documentation Updated
 
-- `soul.md` rule 5 corrected: `sp-picker` requires `ref` + `addEventListener('change')`, not `onInput`/`onChange`
+- `agent instructions/AGENTS.md` / SOUL rule 5 corrected: `sp-picker` requires `ref` + `addEventListener('change')`, not `onInput`/`onChange`
 - Added notes about `colorProfile` and bounds normalization
 
 ### Build
@@ -381,21 +366,13 @@ Removed unused exports:
 - `rgbToHex()` still exported but unused
 - No `executionContext.isCancelled` check for large image processing
 - No presets/save/load for settings
-- Research findings from dither tools not yet incorporated
 - Debug logging still present (remove before production)
 
 ---
 
-## 2026-03-15 18:00 CET — Major Algorithm Expansion & Pixel Scale (Opus)
+## 2026-03-15 18:00 CET — Major algorithm expansion & pixel scale
 
-**By:** Claude Opus 4.6 (feature implementation based on competitor analysis)
-
-### Competitor Analysis
-Analyzed two commercial plugins installed on user's system:
-- **DITHERTONE PRO v1.1.0** ($75) — 33 algorithms, tonal mapping, mask mode, transparency/knockout
-- **Dither Pusher** ($40) — 25 algorithms + 20 pattern maps, custom error weights, vector output, pixel scaling
-
-### Algorithms Added (9 → 22 total)
+### Algorithms added (9 → 22 total)
 
 **New Error Diffusion (6):**
 - Jarvis-Judice-Ninke (3-row, 12-neighbor kernel)
@@ -422,7 +399,7 @@ Analyzed two commercial plugins installed on user's system:
 
 - **Generic error diffusion engine** — all error diffusion algorithms now use a single `errorDiffusionDither()` function with kernel definitions in a `KERNELS` lookup table. Adding new kernels = just adding an entry.
 - **Serpentine scanning support** — built into the generic engine, toggleable per algorithm
-- **Pixel Scale** (1-16x) — downscales image before dithering with nearest-neighbor, upscales back after. Creates chunky pixel art look. Both competitors have this feature.
+- **Pixel Scale** (1-16x) — downscales image before dithering with nearest-neighbor, upscales back after (chunky pixel-art style).
 
 ### UI Changes
 - Algorithm dropdown expanded from 9 to 22 entries with new category sections (Ordered, Halftone)
@@ -441,9 +418,7 @@ Analyzed two commercial plugins installed on user's system:
 
 ---
 
-## 2026-03-15 19:00 CET — Settings Persistence & Gamma Correction (Opus)
-
-**By:** Claude Opus 4.6 (feature implementation)
+## 2026-03-15 19:00 CET — Settings persistence & gamma correction
 
 ### Features Added
 
@@ -470,9 +445,7 @@ Analyzed two commercial plugins installed on user's system:
 
 ---
 
-## 2026-03-15 19:30 CET — Palette Presets, Color Overlay, Invert & Transparency (Opus)
-
-**By:** Claude Opus 4.6 (feature implementation)
+## 2026-03-15 19:30 CET — Palette presets, color overlay, invert & transparency
 
 ### Features Added
 
@@ -509,9 +482,7 @@ Analyzed two commercial plugins installed on user's system:
 
 ---
 
-## 2026-03-15 20:00 CET — Artistic Patterns, Error Spread & Debug Cleanup (Opus)
-
-**By:** Claude Opus 4.6 (feature implementation + cleanup)
+## 2026-03-15 20:00 CET — Artistic patterns, error spread & debug cleanup
 
 ### Features Added
 
@@ -537,4 +508,3 @@ Analyzed two commercial plugins installed on user's system:
 
 ### Build
 - Webpack compiles successfully with 0 errors
-- All remaining TODO items from competitor analysis are now complete

@@ -1,0 +1,12 @@
+Dither FX (Photoshop UXP plugin)
+Copyright 2026 Daniel Mevit
+
+This product is licensed under the Apache License, Version 2.0.
+See the LICENSE file for the full license text.
+
+This software integrates with Adobe Photoshop through the Unified Extensibility
+Platform (UXP). Distribution and use of the plugin are governed by this project's
+open-source license; your use of Adobe products remains subject to Adobe's terms.
+
+Third-party libraries (for example React) retain their respective licenses;
+see package metadata and upstream notices.

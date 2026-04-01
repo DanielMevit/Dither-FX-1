@@ -25,7 +25,7 @@ A real-time, non-destructive dithering plugin for Adobe Photoshop (24.0+). All p
 - **Target modes:** Active layer, flattened document, selection only
 
 ### v2.1 (planned)
-See `ROADMAP.md` for competitive analysis and remaining feature gaps.
+See [`ROADMAP.md`](ROADMAP.md) for planned enhancements.
 
 ## Tech
 
@@ -46,15 +46,21 @@ Load in Photoshop via **UXP Developer Tools** → **Add Plugin** → select `dis
 
 **Requirements:** Photoshop 24.0+ / UXP 5.6+ / Node.js (for build tooling only)
 
+## License
+
+Open source under **Apache License 2.0**. See [`LICENSE`](LICENSE), [`LICENSING.md`](LICENSING.md), and [`NOTICE`](NOTICE).
+
 ## Structure
 
 ```
 Dither FX 1/
-  SOUL.md            ← agent identity & standards
-  AGENTS.md          ← workflow rules for this repo
-  README.md          ← this file
-  CHANGELOG.md       ← timestamped session & release notes
-  ROADMAP.md         ← competitive analysis & v2.0 feature plan
+  agent instructions/   ← SOUL.md, AGENTS.md, README (for contributors & agents)
+  README.md             ← this file
+  CHANGELOG.md          ← release notes
+  ROADMAP.md            ← planned enhancements
+  LICENSE               ← Apache 2.0
+  LICENSING.md          ← how licensing applies to this project
+  NOTICE                ← copyright and third-party note
   src/
     index.jsx                 ← entry point, panel registration
     controllers/

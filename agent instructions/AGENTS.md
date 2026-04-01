@@ -1,7 +1,7 @@
 # Agent rules for this repo (Dither FX 1)
 
 ## Reading ritual
-- At session start, read SOUL.md, then AGENTS.md, then README.md silently and obey them.
+- At session start, read `agent instructions/SOUL.md`, then `agent instructions/AGENTS.md`, then `README.md` from the repo root, silently and obey them.
 - Do not summarize them unless Daniel explicitly asks.
 
 ## SOUL handling
@@ -12,7 +12,7 @@
 - Work in milestone-sized steps: Plan → implement → run → summarize.
 - One task should deliver a visible improvement and include verification (build) and a CHANGELOG.md entry.
 - Do not modify anything outside this repository.
-- Do not rename or change the folder structure.
+- Do not rename or rearrange `src/` or `plugin/` without a clear reason and doc updates.
 
 ## UXP Core Constraints — Never Break These
 1. **Every document mutation must be inside `core.executeAsModal()`**. This includes pixel reads (`getPixels`), pixel writes (`putPixels`), layer creation/duplication, visibility changes, and snapshot creation. Failing to wrap in a modal throws a UXP security error.
@@ -126,10 +126,8 @@ Always run `npm run build` after changes. Must compile with 0 errors before comm
 - **v1.2** (done): Target picker wired (active/flattened/selection), sharpen radius UI, tritone threshold sliders, colorProfile fix, UXP bounds normalization, sp-picker ref fix, Done button
 - **v1.3** (done): Algorithm expansion (9→27), pixel scale, settings persistence, gamma correction, palette presets (13), color overlay, invert, transparency handling, halftone dot size, artistic patterns (5), error spread control
 - **v2.0** (done): Presets (7 built-in + user), batch render, CRT/glow post-effect, denoise, 32x pixel scale, image-as-palette extraction, chromatic aberration, mask mode, vector path output, 8 new algorithms (35 total)
-- **v2.1** (next): See ROADMAP.md for remaining competitive gaps
+- **v2.1** (next): See `ROADMAP.md` for planned enhancements
 
 ## Commit & push
 - Commit message format: short summary line, blank line, bullet points of changes.
-- Include `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>` at end.
-- **Push from WSL:** use `powershell.exe -Command "Set-Location 'D:\Vibe Coding\Photoshop Plugins\Dither FX 1'; git push origin main"` — Git credentials live on the Windows side, not in WSL.
 - **Never force push to main.**
